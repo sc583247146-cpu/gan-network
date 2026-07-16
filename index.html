@@ -941,6 +941,7 @@
   };
   var TICKET_STATUS = ['waiting','in_progress','supplier_ordered','done'];
   var TICKET_STATUS_LABEL = {waiting:'ממתין', in_progress:'בטיפול', supplier_ordered:'הוזמן ספק', done:'בוצע'};
+  var TICKET_STATUS_TONE = {waiting:'grey', in_progress:'amber', supplier_ordered:'blue', done:'green'};
   function getAllTicketTypes(){
     var all = {};
     Object.keys(TICKET_TYPES).forEach(function(k){ all[k] = TICKET_TYPES[k]; });
@@ -951,9 +952,8 @@
   function renderTickets(){
     var branchOpts = '<option value="all">כל הסניפים</option>' + state.branches.map(function(b){return '<option value="'+b.id+'" '+(branchFilter===b.id?'selected':'')+'>'+esc(b.name)+'</option>';}).join('');
     var list = state.tickets.filter(function(t){ return branchFilter==='all' || t.branchId===branchFilter; });
+    list = list.filter(function(t){ return showArchive ? t.status==='done' : t.status!=='done'; });
     list = list.slice().sort(function(a,b){
-      if(a.status==='done' && b.status!=='done') return 1;
-      if(b.status==='done' && a.status!=='done') return -1;
       if(a.type==='urgent' && b.type!=='urgent') return -1;
       if(b.type==='urgent' && a.type!=='urgent') return 1;
       return (b.date||'').localeCompare(a.date||'');
@@ -986,7 +986,10 @@
             '<div style="display:flex; gap:8px; margin-top:8px;">'+
               '<input type="text" placeholder="כתבו תגובה..." data-reply-input="'+t.id+'" style="flex:1;">'+
               '<button class="btn small" data-reply-send="'+t.id+'">שלח</button>'+
-            '</div>'
+            '</div>'+
+            '<label style="display:flex; align-items:center; gap:6px; font-size:12px; margin-top:6px; color:var(--ink-soft);">'+
+              '<input type="checkbox" data-reply-email-toggle="'+t.id+'" '+(t.reporterEmail?'':'disabled')+'> גם הכן מייל עדכון למדווח על התגובה'+(t.reporterEmail?'':' (לא הוזן מייל)')+
+            '</label>'
           )+
         '</div>';
       }
@@ -999,16 +1002,21 @@
         renderAttachmentPreview(t.attachmentUrl)+
         '<div class="flexrow">'+
           '<select data-ticket-status="'+t.id+'" style="width:160px;">'+statusOpts+'</select>'+
+          (t.reporterEmail? '<button class="btn secondary small" data-status-email="'+t.id+'">שלח עדכון סטטוס במייל</button>' : '')+
           (t.reporterEmail? '<span class="muted" style="font-size:12.5px;">מייל המדווח: '+esc(t.reporterEmail)+'</span>' : (t.supplier? '<span class="muted" style="font-size:12.5px;">ספק: '+esc(t.supplier)+'</span>' : ''))+
         '</div>'+
         '<div style="margin-top:8px;"><button class="btn secondary small" data-toggle-thread="'+t.id+'">'+(isOpen?'סגור תגובות':'הצג / הוסף תגובות')+'</button></div>'+
         threadHtml+
       '</div>';
-    }).join('') || '<div class="empty">אין פניות בסינון הנוכחי</div>';
+    }).join('') || '<div class="empty">'+(showArchive?'אין עדיין פניות בארכיון':'אין פניות פעילות בסינון הנוכחי')+'</div>';
 
     return ''+
-    '<div class="topline"><div><h1 class="page-title">פניות ותקלות</h1><div class="page-sub">מרכז פניות אחד לכל הגננות והמנהלות</div></div>'+
-      '<button class="btn" id="open-new-ticket">פנייה חדשה</button></div>'+
+    '<div class="topline"><div><h1 class="page-title">'+(showArchive?'ארכיון פניות':'פניות ותקלות')+'</h1><div class="page-sub">'+(showArchive?'כל הפניות שטופלו — לתיעוד':'מרכז פניות אחד לכל הגננות והמנהלות')+'</div></div>'+
+      '<div style="display:flex; gap:8px;">'+
+        '<button class="btn secondary" id="toggle-archive-btn">'+(showArchive?'חזרה לפניות פעילות':'הצג ארכיון')+'</button>'+
+        (!showArchive ? '<button class="btn" id="open-new-ticket">פנייה חדשה</button>' : '')+
+      '</div></div>'+
+    (showArchive ? '' :
     '<div class="card" style="margin-bottom:18px;">'+
       '<div class="flexrow" style="margin-bottom:6px;"><h2 class="section-title" style="margin:0;">קישור לטופס פנייה מרחוק</h2>'+connPill+'</div>'+
       '<p class="muted" style="font-size:13px; margin-bottom:12px;">שתפו את הקישור עם הגננות והמנהלות. הקישור קבוע — שולחים אותו פעם אחת ואפשר לשמור אותו, גם אם תוסיפו סניפים או תשנו שמות בעתיד. מי שפותח אותו רואה טופס פשוט לדיווח — בלי גישה לשאר המערכת. הפנייה נכנסת ישירות לכאן דרך הענן.</p>'+
@@ -1032,7 +1040,8 @@
         : '')+
       '</div>'+
     '</div>'+
-    renderCustomTypesCard()+
+    renderCustomTypesCard()
+    )+
     '<div class="branch-select-row"><label class="muted" style="font-weight:700; font-size:13px;">סינון לפי סניף:</label>'+
       '<select id="ticket-branch-filter" style="width:200px;">'+branchOpts+'</select></div>'+
     itemsHtml;
@@ -1330,28 +1339,6 @@
     return sb.from('tickets').select('*').order('created_at', {ascending:false}).then(function(res){
       if(res.error) throw res.error;
       var rows = res.data || [];
-      if(rows.length===0 && state.tickets.length>0){
-        // One-time migration: push existing local-only tickets up to the cloud
-        var chain = Promise.resolve();
-        state.tickets.forEach(function(t){
-          chain = chain.then(function(){
-            return sb.from('tickets').insert([{
-              branch_name: ticketBranchDisplay(t),
-              type: t.type,
-              status: t.status,
-              description: t.text,
-              reporter_email: t.reporterEmail || null
-            }]);
-          });
-        });
-        return chain.then(function(){
-          return sb.from('tickets').select('*').order('created_at', {ascending:false});
-        }).then(function(res2){
-          state.tickets = (res2.data || []).map(mapRemoteTicket);
-          lastSyncOK = true;
-          return true;
-        });
-      }
       state.tickets = rows.map(mapRemoteTicket);
       lastSyncOK = true;
       return true;
@@ -1408,6 +1395,7 @@
   }
   var expandedTicketId = null;
   var ticketMessagesCache = {};
+  var showArchive = false;
   var reportLinkGenerated = '';
   var employeeMessageText = '';
   var employeeEmailDraft = '';
@@ -1536,9 +1524,15 @@
       var resultsBox = document.getElementById('lookup-results');
       if(!email){ resultsBox.innerHTML = '<p class="muted" style="font-size:13px;">נא להזין כתובת מייל.</p>'; return; }
       resultsBox.innerHTML = '<p class="muted" style="font-size:13px;">מחפש…</p>';
-      fetchTicketsByEmail(email).then(function(tickets){
-        if(!tickets.length){
+      fetchTicketsByEmail(email).then(function(allTickets){
+        var tickets = allTickets.filter(function(t){ return t.status!=='done'; });
+        var closedCount = allTickets.length - tickets.length;
+        if(!allTickets.length){
           resultsBox.innerHTML = '<p class="muted" style="font-size:13px;">לא נמצאו פניות עם המייל הזה. ודאו שהזנתם את אותה כתובת שמילאתם בעת השליחה.</p>';
+          return;
+        }
+        if(!tickets.length){
+          resultsBox.innerHTML = '<p class="muted" style="font-size:13px;">כל הפניות שלכם טופלו וסגורות. תודה!</p>';
           return;
         }
         resultsBox.innerHTML = tickets.map(function(t){
@@ -1547,10 +1541,10 @@
           var typeLabel = TICKET_TYPES[t.type] ? TICKET_TYPES[t.type].label : (customMatch ? customMatch.label : t.type);
           return '<div style="border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-bottom:8px;">'+
             '<div style="font-weight:700; font-size:13.5px;">'+esc(t.branch_name)+' · '+esc(typeLabel)+'</div>'+
-            '<div class="muted" style="font-size:12px; margin:4px 0;">סטטוס: '+esc(statusLabel)+' · '+esc((t.created_at||'').slice(0,10))+'</div>'+
+            '<div style="margin:6px 0;"><span class="pill '+(TICKET_STATUS_TONE[t.status]||'grey')+'">'+esc(statusLabel)+'</span></div>'+
             '<button class="btn secondary small" data-open-thread="'+t.id+'">פתיחת השיחה</button>'+
           '</div>';
-        }).join('');
+        }).join('') + (closedCount>0 ? '<p class="muted" style="font-size:12px; margin-top:6px;">('+closedCount+' פניות סגורות אינן מוצגות כאן)</p>' : '');
         resultsBox.querySelectorAll('[data-open-thread]').forEach(function(el){
           el.addEventListener('click', function(){
             var id = el.getAttribute('data-open-thread');
@@ -1596,7 +1590,7 @@
       card.innerHTML =
         '<h1 class="page-title" style="font-size:22px; margin-bottom:4px;">מעקב אחר הפנייה שלכם</h1>'+
         '<p class="muted" style="margin-bottom:14px; font-size:13px;">'+esc(ticket.branch_name)+' · '+esc(typeLabel)+'</p>'+
-        '<div style="margin-bottom:14px;"><span class="pill '+(ticket.status==='done'?'green':'amber')+'">סטטוס: '+esc(statusLabel)+'</span></div>'+
+        '<div style="margin-bottom:14px;"><span class="pill '+(TICKET_STATUS_TONE[ticket.status]||'grey')+'">סטטוס: '+esc(statusLabel)+'</span></div>'+
         '<div style="padding:10px 12px; background:var(--surface-2); border-radius:10px; margin-bottom:14px;">'+esc(ticket.description)+'</div>'+
         renderAttachmentPreview(ticket.attachment_url)+
         '<h2 class="section-title" style="font-size:15px;">התכתבות</h2>'+
@@ -1705,6 +1699,36 @@
       showToast('המלאי עודכן');
     });
   }
+  function openEmailDraftModal(to, subject, body){
+    var root = document.getElementById('modal-root');
+    var fullMessage = 'אל: '+to+'\nנושא: '+subject+'\n\n'+body;
+    root.innerHTML = '<div class="modal-bg" id="modal-bg"><div class="modal">'+
+      '<button class="close-x" id="modal-close">×</button>'+
+      '<h3>הודעת מייל למדווח</h3>'+
+      '<p class="muted" style="font-size:12.5px; margin-top:-8px; margin-bottom:12px;">העתיקו את ההודעה, ופתחו בעצמכם הודעה חדשה ב-Gmail / Outlook / וואטסאפ ליעד הזה.</p>'+
+      '<textarea id="email-draft-box" rows="8" readonly style="width:100%; font-size:13px; line-height:1.6;" dir="ltr">'+esc(fullMessage)+'</textarea>'+
+      '<button class="btn" id="email-draft-copy-btn" style="width:100%; margin-top:12px;">העתק את ההודעה</button>'+
+    '</div></div>';
+    document.getElementById('modal-bg').addEventListener('click', function(e){ if(e.target.id==='modal-bg') closeModal(); });
+    document.getElementById('modal-close').addEventListener('click', closeModal);
+    document.getElementById('email-draft-copy-btn').addEventListener('click', function(){
+      var box = document.getElementById('email-draft-box');
+      box.select();
+      box.setSelectionRange(0, 99999);
+      var copied = false;
+      try{ copied = document.execCommand('copy'); }catch(e){}
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(box.value).then(function(){ showToast('ההודעה הועתקה'); }).catch(function(){
+          if(!copied) showToast('סמנו והעתיקו ידנית (Ctrl+C)');
+        });
+      } else if(copied){
+        showToast('ההודעה הועתקה');
+      } else {
+        showToast('סמנו והעתיקו ידנית (Ctrl+C)');
+      }
+    });
+  }
+
   function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
 
   // ---------- Event handlers (delegated, re-attached each render) ----------
@@ -1914,6 +1938,8 @@
     });
 
     // Tickets
+    var toggleArchiveBtn = document.getElementById('toggle-archive-btn');
+    if(toggleArchiveBtn) toggleArchiveBtn.addEventListener('click', function(){ showArchive = !showArchive; render(); });
     var openTicketBtn = document.getElementById('open-new-ticket');
     if(openTicketBtn) openTicketBtn.addEventListener('click', openNewTicketModal);
     var ticketFilter = document.getElementById('ticket-branch-filter');
@@ -2029,13 +2055,31 @@
         var input = main.querySelector('[data-reply-input="'+id+'"]');
         var text = input.value.trim();
         if(!text) return;
+        var emailToggle = main.querySelector('[data-reply-email-toggle="'+id+'"]');
+        var wantsEmail = !!(emailToggle && emailToggle.checked);
+        var t = state.tickets.find(function(x){return x.id===id;});
         insertMessage(id, 'manager', text).then(function(ok){
           if(!ok){ showToast('שליחת התגובה נכשלה'); return; }
           fetchMessages(id).then(function(msgs){
             ticketMessagesCache[id] = msgs;
             render();
+            if(wantsEmail && t && t.reporterEmail){
+              var subject = 'עדכון לפנייה שלכם — '+ticketBranchDisplay(t);
+              var body = 'שלום,\n\nהתקבלה תגובה חדשה לפנייה שלכם:\n\n"'+text+'"\n\nסטטוס נוכחי: '+(TICKET_STATUS_LABEL[t.status]||t.status)+'\n\nבברכה';
+              openEmailDraftModal(t.reporterEmail, subject, body);
+            }
           });
         });
+      });
+    });
+    main.querySelectorAll('[data-status-email]').forEach(function(el){
+      el.addEventListener('click', function(){
+        var id = el.getAttribute('data-status-email');
+        var t = state.tickets.find(function(x){return x.id===id;});
+        if(!t || !t.reporterEmail) return;
+        var subject = 'עדכון סטטוס לפנייה שלכם — '+ticketBranchDisplay(t);
+        var body = 'שלום,\n\nהסטטוס של הפנייה שלכם עודכן ל: '+(TICKET_STATUS_LABEL[t.status]||t.status)+'\n\nתיאור הפנייה המקורית:\n"'+t.text+'"\n\nבברכה';
+        openEmailDraftModal(t.reporterEmail, subject, body);
       });
     });
 
