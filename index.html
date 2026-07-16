@@ -321,7 +321,7 @@
   function defaultBranches(){
     var arr=[];
     for(var i=1;i<=6;i++){
-      arr.push({id:'b'+i, name:'סניף '+i, address:'', opened:true, notes:''});
+      arr.push({id:'b'+i, name:'סניף '+i, address:'', opened:true, notes:'', yearOpeningList:''});
     }
     return arr;
   }
@@ -511,7 +511,7 @@
 
       // Branches
       var branchRows = state.branches.map(function(b){
-        return {'סניף':b.name, 'כתובת':b.address||'', 'סטטוס':b.opened?'פתוח':'בהקמה', 'הערות ומשימות':b.notes||''};
+        return {'סניף':b.name, 'כתובת':b.address||'', 'סטטוס':b.opened?'פתוח':'בהקמה', 'הערות ומשימות':b.notes||'', 'רשימת קניות לפתיחת שנה':b.yearOpeningList||''};
       });
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(branchRows), 'סניפים');
 
@@ -617,6 +617,7 @@
     s.financials = s.financials || {};
     s.branches.forEach(function(b){
       if(b.notes==null) b.notes='';
+      if(b.yearOpeningList==null) b.yearOpeningList='';
       if(!s.inventory[b.id]) s.inventory[b.id] = defaultInventoryFor();
       (s.customCategories||[]).forEach(function(c){
         if(!s.inventory[b.id][c.key]) s.inventory[b.id][c.key] = [];
@@ -847,6 +848,11 @@
     '<div class="card" style="margin-top:16px;">'+
       '<h2 class="section-title">הערות ומשימות לביצוע — '+esc(activeBranch.name)+'</h2>'+
       '<textarea id="branch-notes" rows="10" placeholder="כל מה שצריך לזכור, לבצע או לעקוב אחריו בסניף הזה — משימות פתוחות, תזכורות, דברים לבדוק בביקור הבא..." style="resize:vertical; min-height:200px; line-height:1.6;">'+esc(activeBranch.notes||'')+'</textarea>'+
+      '<div class="muted" style="font-size:12px; margin-top:6px;">נשמר אוטומטית תוך כדי הקלדה.</div>'+
+    '</div>'+
+    '<div class="card" style="margin-top:16px;">'+
+      '<h2 class="section-title">רשימת קניות לפתיחת שנה חדשה — '+esc(activeBranch.name)+'</h2>'+
+      '<textarea id="branch-year-list" rows="10" placeholder="כל מה שצריך להזמין/לרכוש לקראת פתיחת שנת הלימודים הבאה בסניף הזה..." style="resize:vertical; min-height:200px; line-height:1.6;">'+esc(activeBranch.yearOpeningList||'')+'</textarea>'+
       '<div class="muted" style="font-size:12px; margin-top:6px;">נשמר אוטומטית תוך כדי הקלדה.</div>'+
     '</div>'+
     '<div class="card" style="margin-top:16px;">'+
@@ -2014,6 +2020,16 @@
       });
     }
 
+    var yearListArea = document.getElementById('branch-year-list');
+    if(yearListArea){
+      yearListArea.addEventListener('input', function(){
+        var activeId = branchFilter==='all' ? state.branches[0].id : branchFilter;
+        var b = state.branches.find(function(x){return x.id===activeId;});
+        b.yearOpeningList = yearListArea.value;
+        scheduleSave();
+      });
+    }
+
     var trSubmit = document.getElementById('tr-submit');
     if(trSubmit){
       trSubmit.addEventListener('click', function(){
@@ -2103,7 +2119,7 @@
         var name = nameInp.value.trim();
         var numChildren = childrenInp ? Number(childrenInp.value) || 0 : 0;
         if(!name){ showToast('נא להזין שם לסניף'); return; }
-        var newB = {id:uid(), name:name, address:'', opened:false, notes:''};
+        var newB = {id:uid(), name:name, address:'', opened:false, notes:'', yearOpeningList:''};
         state.branches.push(newB);
         if(numChildren>0 && state.equipmentStandard.items.length){
           state.inventory[newB.id] = computeInventoryFromStandard(numChildren);
