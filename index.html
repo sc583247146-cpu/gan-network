@@ -1505,16 +1505,26 @@
           if(ok){
             var threadLink = window.location.href.split('#')[0] + '#ticket=' + encodeURIComponent(row.id);
             followUpHtml = '<div style="margin-top:12px; padding:10px; background:var(--surface-2); border-radius:8px;">'+
-              '<div class="muted" style="font-size:12px; margin-bottom:6px;">שמרו את הקישור הזה כדי לראות תגובות ולהוסיף עדכונים על הפנייה:</div>'+
+              '<div class="muted" style="font-size:12px; margin-bottom:6px;">שמרו את הקישור הזה כדי לחזור לשיחה בעתיד:</div>'+
               '<input type="text" readonly value="'+esc(threadLink)+'" style="width:100%;" dir="ltr" onclick="this.select()">'+
+              '<button class="btn small" id="go-to-thread-now" style="width:100%; margin-top:8px;">המשך לשיחה עכשיו</button>'+
             '</div>';
           }
           resultBox.innerHTML = '<p style="margin-top:12px; font-weight:700; color:'+(ok?'var(--primary-dark)':'var(--red)')+';">'+
-            (ok ? 'הפנייה נקלטה במערכת בהצלחה! תודה.' : 'לא הצלחנו לשמור את הפנייה במערכת (ייתכן שההגדרה בענן עדיין לא הושלמה במלואה) — אבל נפתח לכם מייל לשליחה ידנית כגיבוי.')+
+            (ok ? 'הפנייה נקלטה במערכת בהצלחה! תודה. מעבירים אתכם לשיחה…' : 'לא הצלחנו לשמור את הפנייה במערכת (ייתכן שההגדרה בענן עדיין לא הושלמה במלואה) — אבל נפתח לכם מייל לשליחה ידנית כגיבוי.')+
           '</p>'+followUpHtml;
           if(email){ window.location.href = mailto; }
           btn.disabled = false;
           btn.textContent = 'שליחת הפנייה';
+          if(ok){
+            var goNowBtn = document.getElementById('go-to-thread-now');
+            var doGo = function(){
+              window.location.hash = 'ticket=' + encodeURIComponent(row.id);
+              window.location.reload();
+            };
+            if(goNowBtn) goNowBtn.addEventListener('click', doGo);
+            setTimeout(doGo, 2500);
+          }
         });
       });
     });
@@ -1525,35 +1535,43 @@
       if(!email){ resultsBox.innerHTML = '<p class="muted" style="font-size:13px;">נא להזין כתובת מייל.</p>'; return; }
       resultsBox.innerHTML = '<p class="muted" style="font-size:13px;">מחפש…</p>';
       fetchTicketsByEmail(email).then(function(allTickets){
-        var tickets = allTickets.filter(function(t){ return t.status!=='done'; });
-        var closedCount = allTickets.length - tickets.length;
-        if(!allTickets.length){
-          resultsBox.innerHTML = '<p class="muted" style="font-size:13px;">לא נמצאו פניות עם המייל הזה. ודאו שהזנתם את אותה כתובת שמילאתם בעת השליחה.</p>';
-          return;
-        }
-        if(!tickets.length){
-          resultsBox.innerHTML = '<p class="muted" style="font-size:13px;">כל הפניות שלכם טופלו וסגורות. תודה!</p>';
-          return;
-        }
-        resultsBox.innerHTML = tickets.map(function(t){
-          var statusLabel = TICKET_STATUS_LABEL[t.status] || t.status;
-          var customMatch = (cfg && cfg.ticketTypes || []).find(function(ct){return ct.key===t.type;});
-          var typeLabel = TICKET_TYPES[t.type] ? TICKET_TYPES[t.type].label : (customMatch ? customMatch.label : t.type);
-          return '<div style="border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-bottom:8px;">'+
-            '<div style="font-weight:700; font-size:13.5px;">'+esc(t.branch_name)+' · '+esc(typeLabel)+'</div>'+
-            '<div style="margin:6px 0;"><span class="pill '+(TICKET_STATUS_TONE[t.status]||'grey')+'">'+esc(statusLabel)+'</span></div>'+
-            '<button class="btn secondary small" data-open-thread="'+t.id+'">פתיחת השיחה</button>'+
-          '</div>';
-        }).join('') + (closedCount>0 ? '<p class="muted" style="font-size:12px; margin-top:6px;">('+closedCount+' פניות סגורות אינן מוצגות כאן)</p>' : '');
-        resultsBox.querySelectorAll('[data-open-thread]').forEach(function(el){
-          el.addEventListener('click', function(){
-            var id = el.getAttribute('data-open-thread');
-            window.location.hash = 'ticket=' + encodeURIComponent(id);
-            window.location.reload();
-          });
-        });
+        drawLookupResults(allTickets, false);
       });
     });
+
+    function drawLookupResults(allTickets, showHistory){
+      var resultsBox = document.getElementById('lookup-results');
+      if(!allTickets.length){
+        resultsBox.innerHTML = '<p class="muted" style="font-size:13px;">לא נמצאו פניות עם המייל הזה. ודאו שהזנתם את אותה כתובת שמילאתם בעת השליחה.</p>';
+        return;
+      }
+      var tickets = showHistory ? allTickets : allTickets.filter(function(t){ return t.status!=='done'; });
+      var closedCount = allTickets.length - allTickets.filter(function(t){ return t.status!=='done'; }).length;
+      var listHtml = tickets.map(function(t){
+        var statusLabel = TICKET_STATUS_LABEL[t.status] || t.status;
+        var customMatch = (cfg && cfg.ticketTypes || []).find(function(ct){return ct.key===t.type;});
+        var typeLabel = TICKET_TYPES[t.type] ? TICKET_TYPES[t.type].label : (customMatch ? customMatch.label : t.type);
+        return '<div style="border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-bottom:8px;">'+
+          '<div style="font-weight:700; font-size:13.5px;">'+esc(t.branch_name)+' · '+esc(typeLabel)+'</div>'+
+          '<div class="muted" style="font-size:11.5px; margin-top:2px;">'+esc((t.created_at||'').slice(0,10))+'</div>'+
+          '<div style="margin:6px 0;"><span class="pill '+(TICKET_STATUS_TONE[t.status]||'grey')+'">'+esc(statusLabel)+'</span></div>'+
+          '<button class="btn secondary small" data-open-thread="'+t.id+'">פתיחת השיחה</button>'+
+        '</div>';
+      }).join('') || '<p class="muted" style="font-size:13px;">כל הפניות שלכם טופלו וסגורות. תודה!</p>';
+      var toggleHtml = closedCount>0 ?
+        '<button class="btn secondary small" id="lookup-history-toggle" style="width:100%; margin-top:6px;">'+(showHistory?'הסתרת פניות סגורות':'הצג גם היסטוריה ('+closedCount+' פניות סגורות)')+'</button>'
+        : '';
+      resultsBox.innerHTML = listHtml + toggleHtml;
+      resultsBox.querySelectorAll('[data-open-thread]').forEach(function(el){
+        el.addEventListener('click', function(){
+          var id = el.getAttribute('data-open-thread');
+          window.location.hash = 'ticket=' + encodeURIComponent(id);
+          window.location.reload();
+        });
+      });
+      var histToggle = document.getElementById('lookup-history-toggle');
+      if(histToggle) histToggle.addEventListener('click', function(){ drawLookupResults(allTickets, !showHistory); });
+    }
   }
 
   function renderTicketThreadPage(ticketId){
@@ -1595,7 +1613,12 @@
         renderAttachmentPreview(ticket.attachment_url)+
         '<h2 class="section-title" style="font-size:15px;">התכתבות</h2>'+
         '<div id="thread-msgs">'+msgRows+'</div>'+
-        actionHtml;
+        actionHtml+
+        '<button class="btn secondary small" id="thread-new-ticket-btn" style="width:100%; margin-top:14px;">יש לכם עוד פנייה? פתחו כאן</button>';
+      document.getElementById('thread-new-ticket-btn').addEventListener('click', function(){
+        window.location.hash = 'report';
+        window.location.reload();
+      });
       if(!closed){
         document.getElementById('thread-reply-send').addEventListener('click', function(){
           var inp = document.getElementById('thread-reply-input');
@@ -1608,7 +1631,11 @@
         });
         document.getElementById('thread-close-btn').addEventListener('click', function(){
           if(!confirm('לסגור את הפנייה? לא תוכלו להוסיף תגובות נוספות אחרי זה.')) return;
-          updateRemoteTicketStatus(ticketId, 'done').then(function(){ refresh(); });
+          updateRemoteTicketStatus(ticketId, 'done').then(function(){
+            alert('הפנייה נסגרה. מעבירים אתכם לטופס פנייה חדש.');
+            window.location.hash = 'report';
+            window.location.reload();
+          });
         });
       }
     }
