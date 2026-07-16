@@ -346,6 +346,49 @@
       ]
     };
   }
+  function getAllCategories(){
+    return [
+      {key:'furniture', label:'ריהוט', hasMin:false},
+      {key:'fixed', label:'ציוד קבוע', hasMin:false},
+      {key:'consumables', label:'ציוד מתכלה (רמת אזהרה)', hasMin:true}
+    ].concat((state.customCategories||[]).map(function(c){
+      return {key:c.key, label:c.label, hasMin:!!c.hasMin};
+    }));
+  }
+  function ensureCategoryArrays(branchId){
+    getAllCategories().forEach(function(c){
+      if(!state.inventory[branchId][c.key]) state.inventory[branchId][c.key] = [];
+    });
+  }
+  function renderAddCategoryForm(){
+    var customRows = (state.customCategories||[]).map(function(c){
+      return '<div class="item-row"><span class="item-name">'+esc(c.label)+'</span>'+
+        (c.hasMin? '<span class="pill grey">עם סף אזהרה</span>' : '')+
+        '<button class="icon-btn" title="מחק קטגוריה" data-cat-del="'+c.key+'">✕</button>'+
+      '</div>';
+    }).join('');
+    return '<div class="cat-header">קטגוריות מותאמות אישית<span class="dash"></span></div>'+
+      (customRows || '<div class="muted" style="padding:6px 0; font-size:13px;">אין עדיין קטגוריות נוספות מעבר לשלוש הקבועות</div>')+
+      '<div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">'+
+        '<input type="text" placeholder="שם קטגוריה חדשה (למשל: ציוד אלקטרוני)" id="new-cat-name" style="flex:1; min-width:160px;">'+
+        '<label style="display:flex; align-items:center; gap:4px; font-size:12.5px; white-space:nowrap;"><input type="checkbox" id="new-cat-hasmin"> עם סף אזהרה</label>'+
+        '<button class="btn small" id="add-cat-btn">הוסף קטגוריה</button>'+
+      '</div>';
+  }
+  function computeInventoryFromStandard(numChildren){
+    var basePer = (state.equipmentStandard && state.equipmentStandard.basePer) || 20;
+    var items = (state.equipmentStandard && state.equipmentStandard.items) || [];
+    var inv = {};
+    getAllCategories().forEach(function(c){ inv[c.key] = []; });
+    items.forEach(function(std){
+      var qty = Math.max(0, Math.ceil((numChildren / basePer) * std.qtyPerBase));
+      var item = {id:uid(), name:std.name, qty:qty};
+      if(std.category==='consumables' && std.minQty!=null) item.minQty = std.minQty;
+      if(!inv[std.category]) inv[std.category] = [];
+      inv[std.category].push(item);
+    });
+    return inv;
+  }
   function wizardPhases(){
     return [
       {id:'p1', title:"שלב א' — בירוקרטיה", items:[
@@ -397,6 +440,8 @@
       orderLists: [],
       settings: {email:''},
       customTicketTypes: [],
+      equipmentStandard: {basePer: 20, items: []},
+      customCategories: [],
       wizard: wizard, // branchId -> {phases}
       tickets: [],
       suppliers: [],
@@ -472,11 +517,11 @@
 
       // Inventory
       var invRows = [];
-      var catLabel = {furniture:'ריהוט', fixed:'ציוד קבוע', consumables:'ציוד מתכלה'};
+      var allCatsForExport = getAllCategories();
       state.branches.forEach(function(b){
-        ['furniture','fixed','consumables'].forEach(function(cat){
-          state.inventory[b.id][cat].forEach(function(it){
-            invRows.push({'סניף':b.name, 'קטגוריה':catLabel[cat], 'פריט':it.name, 'כמות':it.qty, 'סף אזהרה': it.minQty!=null? it.minQty : ''});
+        allCatsForExport.forEach(function(c){
+          (state.inventory[b.id][c.key]||[]).forEach(function(it){
+            invRows.push({'סניף':b.name, 'קטגוריה':c.label, 'פריט':it.name, 'כמות':it.qty, 'סף אזהרה': it.minQty!=null? it.minQty : ''});
           });
         });
       });
@@ -490,7 +535,7 @@
 
       // Deliveries (goods received)
       var dvRows = state.deliveries.map(function(d){
-        return {'תאריך':d.date, 'סניף':branchName(d.branchId), 'קטגוריה':CAT_LABEL[d.cat]||d.cat, 'פריט':d.item, 'כמות שהתקבלה':d.qty, 'הערה / ספק':d.note||''};
+        return {'תאריך':d.date, 'סניף':branchName(d.branchId), 'קטגוריה':getCatLabel(d.cat), 'פריט':d.item, 'כמות שהתקבלה':d.qty, 'הערה / ספק':d.note||''};
       });
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dvRows), 'קליטות מלאי');
 
@@ -563,6 +608,8 @@
     s.settings = s.settings || {email:''};
     if(s.settings.email==null) s.settings.email = '';
     s.customTicketTypes = s.customTicketTypes || [];
+    s.equipmentStandard = s.equipmentStandard || {basePer: 20, items: []};
+    s.customCategories = s.customCategories || [];
     s.wizard = s.wizard || {};
     s.tickets = s.tickets || [];
     s.suppliers = s.suppliers || [];
@@ -571,6 +618,9 @@
     s.branches.forEach(function(b){
       if(b.notes==null) b.notes='';
       if(!s.inventory[b.id]) s.inventory[b.id] = defaultInventoryFor();
+      (s.customCategories||[]).forEach(function(c){
+        if(!s.inventory[b.id][c.key]) s.inventory[b.id][c.key] = [];
+      });
       if(!s.financials[b.id]) s.financials[b.id] = {revenue:0, rent:0, salaries:0, bills:0, purchasing:0};
     });
     return s;
@@ -715,7 +765,8 @@
       '<h2 class="section-title">שמות הסניפים</h2>'+
       '<div class="grid cols-3">'+
         state.branches.map(function(b){
-          return '<label class="field">'+ '<input type="text" value="'+esc(b.name)+'" data-branch-rename="'+b.id+'" style="font-weight:700;">'+'</label>';
+          return '<div style="display:flex; align-items:flex-end; gap:6px;"><label class="field" style="flex:1;">'+ '<input type="text" value="'+esc(b.name)+'" data-branch-rename="'+b.id+'" style="font-weight:700;">'+'</label>'+
+            '<button class="icon-btn" title="מחק סניף לצמיתות" data-branch-delete="'+b.id+'" style="padding-bottom:8px;">✕</button></div>';
         }).join('')+
       '</div>'+
     '</div>'+
@@ -745,6 +796,7 @@
     var branches = state.branches;
     var opts = branches.map(function(b){return '<option value="'+b.id+'" '+(branchFilter===b.id?'selected':'')+'>'+esc(b.name)+'</option>';}).join('');
     var activeId = branchFilter==='all' ? branches[0].id : branchFilter;
+    ensureCategoryArrays(activeId);
     var inv = state.inventory[activeId];
     var activeBranch = branches.find(function(b){return b.id===activeId;});
 
@@ -780,9 +832,8 @@
       '<select id="inv-branch-select" style="width:220px;">'+opts+'</select></div>'+
     '<div class="grid cols-2" style="align-items:start;">'+
       '<div class="card">'+
-        catBlock('furniture','ריהוט', false)+
-        catBlock('fixed','ציוד קבוע', false)+
-        catBlock('consumables','ציוד מתכלה (רמת אזהרה)', true)+
+        getAllCategories().map(function(c){ return catBlock(c.key, c.label, c.hasMin); }).join('')+
+        renderAddCategoryForm()+
         '<h2 class="section-title" style="margin-top:20px;">היסטוריית קליטות מלאי</h2>'+
         renderDeliveryLog(activeId)+
       '</div>'+
@@ -836,9 +887,9 @@
   function allItemsFlat(){
     var out = [];
     state.branches.forEach(function(b){
-      ['furniture','fixed','consumables'].forEach(function(cat){
-        state.inventory[b.id][cat].forEach(function(it){
-          out.push({branchId:b.id, cat:cat, id:it.id, name:it.name, qty:it.qty});
+      getAllCategories().forEach(function(c){
+        (state.inventory[b.id][c.key]||[]).forEach(function(it){
+          out.push({branchId:b.id, cat:c.key, id:it.id, name:it.name, qty:it.qty});
         });
       });
     });
@@ -849,9 +900,10 @@
     var branchOpts = state.branches.map(function(b){return '<option value="'+b.id+'">'+esc(b.name)+'</option>';}).join('');
     var fromId = activeId;
     var items = [];
-    ['furniture','fixed','consumables'].forEach(function(cat){
-      state.inventory[fromId][cat].forEach(function(it){
-        items.push('<option value="'+cat+'|'+it.id+'">'+esc(it.name)+' (מלאי: '+it.qty+')</option>');
+    ensureCategoryArrays(fromId);
+    getAllCategories().forEach(function(c){
+      (state.inventory[fromId][c.key]||[]).forEach(function(it){
+        items.push('<option value="'+c.key+'|'+it.id+'">'+esc(it.name)+' (מלאי: '+it.qty+')</option>');
       });
     });
     return '<div class="grid cols-2" style="margin-bottom:10px;">'+
@@ -873,12 +925,15 @@
     return '<table><thead><tr><th>תאריך</th><th>פריט</th><th>מסלול</th><th>כמות</th></tr></thead><tbody>'+rows+'</tbody></table>';
   }
 
-  var CAT_LABEL = {furniture:'ריהוט', fixed:'ציוד קבוע', consumables:'מתכלים'};
+  function getCatLabel(key){
+    var found = getAllCategories().find(function(c){return c.key===key;});
+    return found ? found.label : key;
+  }
   function renderDeliveryLog(activeId){
     var list = state.deliveries.filter(function(d){ return d.branchId===activeId; }).slice().reverse().slice(0,15);
     if(list.length===0) return '<div class="empty">עוד לא נקלטו משלוחים בסניף זה</div>';
     var rows = list.map(function(d){
-      return '<tr><td>'+esc(d.date)+'</td><td>'+esc(d.item)+'</td><td>'+esc(CAT_LABEL[d.cat]||'')+'</td>'+
+      return '<tr><td>'+esc(d.date)+'</td><td>'+esc(d.item)+'</td><td>'+esc(getCatLabel(d.cat))+'</td>'+
         '<td class="num" style="color:var(--primary-dark);">+'+d.qty+'</td>'+
         '<td class="muted" style="font-size:12.5px;">'+esc(d.note||'')+'</td></tr>';
     }).join('');
@@ -892,6 +947,7 @@
 
     var cardsHtml = settingUp.map(function(b){
       var w = state.wizard[b.id];
+      if(!w.setupNotes) w.setupNotes = [];
       var total=0, done=0;
       w.phases.forEach(function(p){ p.items.forEach(function(it){ total++; if(it.done) done++; }); });
       var pct = total? Math.round(done/total*100) : 0;
@@ -901,6 +957,9 @@
         }).join('');
         return '<div class="phase"><h4>'+esc(p.title)+'</h4>'+itemsHtml+'</div>';
       }).join('');
+      var notesHtml = w.setupNotes.map(function(n){
+        return '<label class="checkitem" style="'+(n.done?'text-decoration:line-through; color:var(--ink-soft);':'')+'"><input type="checkbox" '+(n.done?'checked':'')+' data-setupnote-check="'+b.id+'|'+n.id+'"> '+esc(n.text)+' <button class="icon-btn" title="מחק" data-setupnote-del="'+b.id+'|'+n.id+'" style="margin-right:6px;">✕</button></label>';
+      }).join('') || '<div class="muted" style="font-size:13px; padding:4px 0;">אין עדיין הערות</div>';
       return '<div class="card" style="margin-bottom:18px;">'+
         '<div class="flexrow" style="margin-bottom:10px;">'+
           '<h2 class="section-title" style="margin:0;">'+esc(b.name)+' — בהקמה</h2>'+
@@ -911,6 +970,14 @@
         '</div>'+
         '<div class="progressbar" style="margin-bottom:16px;"><div style="width:'+pct+'%;"></div></div>'+
         phasesHtml+
+        '<div class="phase">'+
+          '<h4>רשימת הערות לטיפול (סמנו ✓ כשמגיע)</h4>'+
+          notesHtml+
+          '<div style="display:flex; gap:8px; margin-top:8px;">'+
+            '<input type="text" placeholder="הוסף הערה..." id="new-setupnote-'+b.id+'" style="flex:1;">'+
+            '<button class="btn small" data-setupnote-add="'+b.id+'">הוסף</button>'+
+          '</div>'+
+        '</div>'+
       '</div>';
     }).join('') || '';
 
@@ -927,8 +994,39 @@
         '<button class="btn secondary" id="wizard-start-existing">התחל הקמה</button></div>'+
         '<p class="muted" style="font-size:13px;">או, אם זה סניף חדש לגמרי (למשל הסניף השביעי):</p>') : '')+
       '<div class="toolbar">'+
-        '<input type="text" id="new-branch-name" placeholder="שם הסניף החדש (למשל: סניף 7)" style="width:240px;">'+
+        '<input type="text" id="new-branch-name" placeholder="שם הסניף החדש (למשל: סניף 7)" style="width:220px;">'+
+        '<input type="number" id="new-branch-children" placeholder="מספר ילדים צפוי" min="0" style="width:160px;">'+
         '<button class="btn" id="wizard-create-new">צור סניף חדש והתחל הקמה</button>'+
+      '</div>'+
+      (state.equipmentStandard.items.length ? '<p class="muted" style="font-size:12.5px; margin-top:8px;">אם תזינו מספר ילדים, המערכת תחשב אוטומטית את כמויות הציוד הנדרשות לפי התקן שהגדרתם למטה, ותמלא בהן את המלאי ההתחלתי של הסניף.</p>' : '<p class="muted" style="font-size:12.5px; margin-top:8px;">כדי שהחישוב האוטומטי יעבוד, הגדירו קודם תקן ציוד לגן קלאסי בכרטיס שלמטה.</p>')+
+    '</div>'+
+    renderEquipmentStandardCard();
+  }
+
+  function renderEquipmentStandardCard(){
+    var std = state.equipmentStandard;
+    var rows = std.items.map(function(it){
+      return '<div class="item-row">'+
+        '<span class="pill grey">'+esc(getCatLabel(it.category))+'</span>'+
+        '<span class="item-name">'+esc(it.name)+'</span>'+
+        '<span class="muted" style="font-size:12.5px;">'+it.qtyPerBase+' ל-'+std.basePer+' ילדים'+(it.minQty!=null? ' · סף: '+it.minQty : '')+'</span>'+
+        '<button class="icon-btn" title="מחק" data-std-del="'+it.id+'">✕</button>'+
+      '</div>';
+    }).join('') || '<div class="muted" style="padding:8px 0;">עדיין לא הוגדר תקן ציוד</div>';
+
+    return '<div class="card" style="margin-top:18px;">'+
+      '<h2 class="section-title">תקן ציוד לגן קלאסי</h2>'+
+      '<p class="muted" style="font-size:13px; margin-bottom:12px;">הגדירו פעם אחת כמה ציוד צריך לגן "רגיל" — ומכאן כל סניף חדש יחושב אוטומטית לפי מספר הילדים שלו.</p>'+
+      '<label class="field" style="margin-bottom:14px; max-width:220px;">מספר ילדים בסיסי לחישוב<input type="number" id="std-base-per" min="1" value="'+std.basePer+'"></label>'+
+      rows+
+      '<div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end;">'+
+        '<label class="field" style="flex:1; min-width:140px;">שם הפריט<input type="text" id="std-new-name" placeholder="למשל: שולחנות"></label>'+
+        '<label class="field" style="width:130px;">קטגוריה<select id="std-new-cat">'+
+          getAllCategories().map(function(c){ return '<option value="'+c.key+'">'+esc(c.label)+'</option>'; }).join('')+
+        '</select></label>'+
+        '<label class="field" style="width:110px;">כמות ל-'+std.basePer+' ילדים<input type="number" id="std-new-qty" min="0" value="1"></label>'+
+        '<label class="field" style="width:90px;">סף אזהרה<input type="number" id="std-new-min" min="0" placeholder="למתכלים"></label>'+
+        '<button class="btn small" id="std-add-btn">הוסף לתקן</button>'+
       '</div>'+
     '</div>';
   }
@@ -1781,10 +1879,57 @@
         showToast('שם הסניף עודכן');
       });
     });
+    main.querySelectorAll('[data-branch-delete]').forEach(function(el){
+      el.addEventListener('click', function(){
+        var id = el.getAttribute('data-branch-delete');
+        var b = state.branches.find(function(x){return x.id===id;});
+        if(!b) return;
+        if(state.branches.length<=1){ showToast('לא ניתן למחוק את הסניף האחרון'); return; }
+        var ok = confirm('למחוק לצמיתות את "'+b.name+'"?\n\nכל המלאי, הרישיונות, התזכורות, ורשימות הקניות שלו יימחקו גם הם. פניות שכבר נשלחו יישארו בענן לצורך תיעוד, אך לא יהיו משויכות יותר לסניף פעיל.\n\nלא ניתן לבטל פעולה זו.');
+        if(!ok) return;
+        state.branches = state.branches.filter(function(x){return x.id!==id;});
+        delete state.inventory[id];
+        delete state.financials[id];
+        delete state.wizard[id];
+        state.licenses = state.licenses.filter(function(l){return l.branchId!==id;});
+        state.reminders = state.reminders.filter(function(r){return r.branchId!==id;});
+        state.orderLists = state.orderLists.filter(function(o){return o.branchId!==id;});
+        if(branchFilter===id) branchFilter='all';
+        scheduleSave(); render();
+        pushSettingsToRemote();
+        showToast('הסניף נמחק');
+      });
+    });
 
     // Inventory branch select
     var invSel = document.getElementById('inv-branch-select');
     if(invSel) invSel.addEventListener('change', function(){ branchFilter = invSel.value; render(); });
+
+    var addCatBtn = document.getElementById('add-cat-btn');
+    if(addCatBtn){
+      addCatBtn.addEventListener('click', function(){
+        var nameInp = document.getElementById('new-cat-name');
+        var hasMinInp = document.getElementById('new-cat-hasmin');
+        var label = nameInp.value.trim();
+        if(!label){ showToast('נא להזין שם קטגוריה'); return; }
+        var key = 'cat_' + uid();
+        state.customCategories.push({key:key, label:label, hasMin:!!hasMinInp.checked});
+        state.branches.forEach(function(b){
+          if(!state.inventory[b.id][key]) state.inventory[b.id][key] = [];
+        });
+        scheduleSave(); render();
+        showToast('הקטגוריה נוספה');
+      });
+    }
+    main.querySelectorAll('[data-cat-del]').forEach(function(el){
+      el.addEventListener('click', function(){
+        var key = el.getAttribute('data-cat-del');
+        var hasItems = state.branches.some(function(b){ return state.inventory[b.id][key] && state.inventory[b.id][key].length>0; });
+        if(hasItems && !confirm('בקטגוריה הזו יש עדיין פריטים בסניפים שונים. מחיקת הקטגוריה תסתיר אותם. להמשיך?')) return;
+        state.customCategories = state.customCategories.filter(function(c){return c.key!==key;});
+        scheduleSave(); render();
+      });
+    });
 
     main.querySelectorAll('[data-inv-inc]').forEach(function(el){
       el.addEventListener('click', function(){ adjustQty(el.getAttribute('data-inv-inc'), 1); });
@@ -1882,6 +2027,7 @@
         var srcItem = state.inventory[from][cat].find(function(i){return i.id===itemId;});
         if(!srcItem || srcItem.qty < qty){ showToast('אין מספיק מלאי בסניף המקור'); return; }
         srcItem.qty -= qty;
+        ensureCategoryArrays(to);
         var destList = state.inventory[to][cat];
         var destItem = destList.find(function(i){return i.name===srcItem.name;});
         if(destItem) destItem.qty += qty;
@@ -1913,6 +2059,34 @@
         showToast('הסניף סומן כפתוח 🎉');
       });
     });
+    main.querySelectorAll('[data-setupnote-add]').forEach(function(el){
+      el.addEventListener('click', function(){
+        var bId = el.getAttribute('data-setupnote-add');
+        var inp = document.getElementById('new-setupnote-'+bId);
+        var text = inp.value.trim();
+        if(!text) return;
+        if(!state.wizard[bId].setupNotes) state.wizard[bId].setupNotes = [];
+        state.wizard[bId].setupNotes.push({id:uid(), text:text, done:false});
+        scheduleSave(); render();
+      });
+    });
+    main.querySelectorAll('[data-setupnote-check]').forEach(function(el){
+      el.addEventListener('change', function(){
+        var parts = el.getAttribute('data-setupnote-check').split('|');
+        var bId=parts[0], nId=parts[1];
+        var note = state.wizard[bId].setupNotes.find(function(n){return n.id===nId;});
+        if(note) note.done = el.checked;
+        scheduleSave(); render();
+      });
+    });
+    main.querySelectorAll('[data-setupnote-del]').forEach(function(el){
+      el.addEventListener('click', function(){
+        var parts = el.getAttribute('data-setupnote-del').split('|');
+        var bId=parts[0], nId=parts[1];
+        state.wizard[bId].setupNotes = state.wizard[bId].setupNotes.filter(function(n){return n.id!==nId;});
+        scheduleSave(); render();
+      });
+    });
     var wizardStartExisting = document.getElementById('wizard-start-existing');
     if(wizardStartExisting){
       wizardStartExisting.addEventListener('click', function(){
@@ -1925,19 +2099,57 @@
     if(wizardCreateNew){
       wizardCreateNew.addEventListener('click', function(){
         var nameInp = document.getElementById('new-branch-name');
+        var childrenInp = document.getElementById('new-branch-children');
         var name = nameInp.value.trim();
+        var numChildren = childrenInp ? Number(childrenInp.value) || 0 : 0;
         if(!name){ showToast('נא להזין שם לסניף'); return; }
         var newB = {id:uid(), name:name, address:'', opened:false, notes:''};
         state.branches.push(newB);
-        state.inventory[newB.id] = defaultInventoryFor();
+        if(numChildren>0 && state.equipmentStandard.items.length){
+          state.inventory[newB.id] = computeInventoryFromStandard(numChildren);
+        } else {
+          state.inventory[newB.id] = defaultInventoryFor();
+        }
         state.financials[newB.id] = {revenue:0, rent:0, salaries:0, bills:0, purchasing:0};
         state.licenses = state.licenses.concat(defaultLicensesFor(newB.id));
         state.wizard[newB.id] = {phases: wizardPhases()};
         scheduleSave(); render();
         pushSettingsToRemote();
-        showToast('הסניף נוצר — בהצלחה בהקמה!');
+        showToast(numChildren>0 && state.equipmentStandard.items.length ? 'הסניף נוצר עם מלאי מחושב לפי '+numChildren+' ילדים!' : 'הסניף נוצר — בהצלחה בהקמה!');
       });
     }
+
+    var stdBasePerInp = document.getElementById('std-base-per');
+    if(stdBasePerInp){
+      stdBasePerInp.addEventListener('change', function(){
+        state.equipmentStandard.basePer = Math.max(1, Number(stdBasePerInp.value)||20);
+        scheduleSave(); render();
+      });
+    }
+    var stdAddBtn = document.getElementById('std-add-btn');
+    if(stdAddBtn){
+      stdAddBtn.addEventListener('click', function(){
+        var nameInp = document.getElementById('std-new-name');
+        var catSel = document.getElementById('std-new-cat');
+        var qtyInp = document.getElementById('std-new-qty');
+        var minInp = document.getElementById('std-new-min');
+        var name = nameInp.value.trim();
+        if(!name){ showToast('נא להזין שם פריט'); return; }
+        var item = {id:uid(), name:name, category:catSel.value, qtyPerBase:Math.max(0, Number(qtyInp.value)||0)};
+        var catMeta = getAllCategories().find(function(c){return c.key===catSel.value;});
+        if(catMeta && catMeta.hasMin && minInp.value!==''){ item.minQty = Math.max(0, Number(minInp.value)||0); }
+        state.equipmentStandard.items.push(item);
+        scheduleSave(); render();
+        showToast('נוסף לתקן');
+      });
+    }
+    main.querySelectorAll('[data-std-del]').forEach(function(el){
+      el.addEventListener('click', function(){
+        var id = el.getAttribute('data-std-del');
+        state.equipmentStandard.items = state.equipmentStandard.items.filter(function(it){return it.id!==id;});
+        scheduleSave(); render();
+      });
+    });
 
     var addTypeBtn = document.getElementById('add-type-btn');
     if(addTypeBtn){
