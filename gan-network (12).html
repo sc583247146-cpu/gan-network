@@ -1,0 +1,2288 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מוקד הרשת — ניהול 6 סניפים</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700;900&family=Assistant:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #EEF1EA;
+    --surface: #FFFFFF;
+    --surface-2: #F7F8F4;
+    --ink: #1C231B;
+    --ink-soft: #55604F;
+    --border: #DCE2D5;
+    --primary: #2F6F5E;
+    --primary-dark: #204F42;
+    --primary-tint: #E3EEE9;
+    --amber: #C1802D;
+    --amber-tint: #FBEEDC;
+    --red: #B23B2E;
+    --red-tint: #FBE5E1;
+    --blue: #3B6E91;
+    --blue-tint: #E4EEF3;
+    --sidebar: #172019;
+    --sidebar-ink: #DCE6D8;
+    --radius: 14px;
+    --shadow: 0 1px 2px rgba(23,32,20,.06), 0 8px 24px rgba(23,32,20,.06);
+    --font-display: 'Frank Ruhl Libre', serif;
+    --font-body: 'Assistant', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--font-body);
+    font-size:15px;
+    line-height:1.5;
+    min-height:100vh;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{animation:none !important; transition:none !important;}
+  }
+  button{font-family:inherit;}
+  input,select,textarea{font-family:inherit; font-size:14px;}
+  .app{
+    display:flex;
+    min-height:100vh;
+  }
+  /* Sidebar */
+  .sidebar{
+    width:230px;
+    flex:0 0 230px;
+    background:var(--sidebar);
+    color:var(--sidebar-ink);
+    display:flex;
+    flex-direction:column;
+    padding:22px 16px;
+    position:sticky;
+    top:0;
+    height:100vh;
+    overflow-y:auto;
+  }
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-family:var(--font-display);
+    font-weight:700;
+    font-size:21px;
+    color:#fff;
+    padding:2px 6px 18px 6px;
+    border-bottom:1px solid rgba(255,255,255,.12);
+    margin-bottom:14px;
+    letter-spacing:.2px;
+  }
+  .brand .mark{
+    flex:0 0 auto;
+    width:34px; height:34px; border-radius:10px;
+    background:linear-gradient(155deg, var(--primary) 0%, #4E9481 100%);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 3px 10px rgba(47,111,94,.45);
+  }
+  .brand .brand-text{display:flex; flex-direction:column;}
+  .brand small{
+    display:block;
+    font-family:var(--font-body);
+    font-weight:400;
+    font-size:11.5px;
+    color:#8FA28C;
+    margin-top:3px;
+  }
+  .nav{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;}
+  .nav button{
+    all:unset;
+    display:flex;
+    align-items:center;
+    gap:11px;
+    padding:10px 12px;
+    border-radius:10px;
+    cursor:pointer;
+    color:var(--sidebar-ink);
+    font-size:14.5px;
+    font-weight:600;
+    transition:background .15s ease, color .15s ease;
+  }
+  .nav button .ico{display:flex; align-items:center; justify-content:center; width:19px; flex:0 0 19px; opacity:.85;}
+  .nav button .ico svg{display:block;}
+  .nav button:hover{background:rgba(255,255,255,.07);}
+  .nav button.active{background:var(--primary); color:#fff;}
+  .nav button.active .ico{opacity:1;}
+  .nav button:focus-visible{outline:2px solid #fff; outline-offset:2px;}
+  .sidebar-foot{
+    margin-top:auto;
+    padding-top:14px;
+    border-top:1px solid rgba(255,255,255,.12);
+    font-size:11.5px;
+    color:#7E9080;
+    line-height:1.6;
+  }
+  /* Main */
+  .main{flex:1; min-width:0; padding:26px 32px 60px; animation:fadein .35s ease;}
+  @keyframes fadein{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+  .topline{display:flex; align-items:baseline; justify-content:space-between; gap:16px; margin-bottom:22px; flex-wrap:wrap;}
+  .page-title{font-family:var(--font-display); font-weight:700; font-size:28px; margin:0;}
+  .page-sub{color:var(--ink-soft); font-size:14px; margin-top:4px;}
+  .card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    padding:20px;
+  }
+  .grid{display:grid; gap:16px;}
+  .grid.cols-2{grid-template-columns:repeat(2,1fr);}
+  .grid.cols-3{grid-template-columns:repeat(3,1fr);}
+  .grid.cols-6{grid-template-columns:repeat(6,1fr);}
+  @media(max-width:1000px){ .grid.cols-3{grid-template-columns:repeat(2,1fr);} .grid.cols-6{grid-template-columns:repeat(3,1fr);} }
+  @media(max-width:640px){ .grid.cols-2, .grid.cols-3{grid-template-columns:1fr;} .grid.cols-6{grid-template-columns:repeat(2,1fr);} }
+
+  h2.section-title{font-family:var(--font-display); font-size:19px; font-weight:700; margin:0 0 12px;}
+  .muted{color:var(--ink-soft);}
+  .pill{
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:12px; font-weight:700; padding:3px 10px; border-radius:999px;
+  }
+  .pill.green{background:var(--primary-tint); color:var(--primary-dark);}
+  .pill.amber{background:var(--amber-tint); color:var(--amber);}
+  .pill.red{background:var(--red-tint); color:var(--red);}
+  .pill.blue{background:var(--blue-tint); color:var(--blue);}
+  .pill.grey{background:var(--surface-2); color:var(--ink-soft); border:1px solid var(--border);}
+
+  .btn{
+    display:inline-flex; align-items:center; gap:6px;
+    background:var(--primary); color:#fff; border:none;
+    padding:9px 16px; border-radius:10px; font-weight:700; font-size:13.5px; cursor:pointer;
+  }
+  .btn:hover{background:var(--primary-dark);}
+  .btn.secondary{background:var(--surface-2); color:var(--ink); border:1px solid var(--border);}
+  .btn.secondary:hover{background:#EDEFE7;}
+  .btn.danger{background:var(--red);}
+  .btn.small{padding:6px 11px; font-size:12.5px; border-radius:8px;}
+  .btn:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible{
+    outline:2px solid var(--primary); outline-offset:1px;
+  }
+
+  input[type=text], input[type=number], input[type=date], input[type=tel], select, textarea{
+    width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:9px;
+    background:#fff; color:var(--ink);
+  }
+  label.field{display:flex; flex-direction:column; gap:5px; font-size:12.5px; font-weight:700; color:var(--ink-soft);}
+
+  table{width:100%; border-collapse:collapse; font-size:14px;}
+  th{text-align:right; font-size:12px; color:var(--ink-soft); font-weight:700; padding:8px 10px; border-bottom:1px solid var(--border);}
+  td{padding:9px 10px; border-bottom:1px solid var(--border); vertical-align:middle;}
+  tr:last-child td{border-bottom:none;}
+  .num{font-variant-numeric:tabular-nums; font-weight:700;}
+
+  .branch-select-row{display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap;}
+  .toolbar{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:16px;}
+
+  /* Dashboard network */
+  .netwrap{position:relative; width:100%; max-width:560px; aspect-ratio:1/1; margin:0 auto;}
+  .node{
+    position:absolute; width:118px; transform:translate(-50%,-50%);
+    text-align:center; cursor:pointer;
+  }
+  .node .dot{
+    width:64px; height:64px; border-radius:50%; margin:0 auto 6px;
+    display:flex; align-items:center; justify-content:center;
+    background:#fff; border:4px solid var(--primary);
+    font-family:var(--font-display); font-weight:700; font-size:20px;
+    box-shadow:var(--shadow);
+    transition:transform .15s ease;
+  }
+  .node:hover .dot{transform:scale(1.06);}
+  .node.status-amber .dot{border-color:var(--amber);}
+  .node.status-red .dot{border-color:var(--red);}
+  .node .lbl{font-weight:700; font-size:13px;}
+  .node .sub{font-size:11px; color:var(--ink-soft);}
+  .hub{
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:100px; height:100px; border-radius:50%;
+    background:radial-gradient(circle at 32% 28%, #24352C 0%, var(--sidebar) 70%);
+    color:#fff;
+    display:flex; align-items:center; justify-content:center; text-align:center;
+    font-family:var(--font-display); font-weight:700; font-size:13px; line-height:1.25;
+    box-shadow:0 6px 22px rgba(23,32,20,.35), inset 0 0 0 1px rgba(255,255,255,.06);
+    padding:6px;
+  }
+  .netlines{position:absolute; inset:0; width:100%; height:100%;}
+
+  .empty{
+    text-align:center; padding:40px 20px; color:var(--ink-soft);
+    border:1.5px dashed var(--border); border-radius:12px; background:var(--surface-2);
+  }
+  .stat-num{font-family:var(--font-display); font-size:30px; font-weight:700;}
+  .stat-lbl{font-size:12.5px; color:var(--ink-soft); font-weight:700;}
+  .flexrow{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+  .item-row{display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border);}
+  .item-row:last-child{border-bottom:none;}
+  .item-name{flex:1; font-weight:600;}
+  .qty-box{display:flex; align-items:center; gap:6px;}
+  .qty-box input{width:64px; text-align:center;}
+  .cat-header{display:flex; align-items:center; gap:8px; margin:18px 0 8px; font-weight:800; font-family:var(--font-display); font-size:16px;}
+  .cat-header .dash{flex:1; border-top:1px dashed var(--border);}
+  .progressbar{height:9px; border-radius:999px; background:var(--surface-2); overflow:hidden; border:1px solid var(--border);}
+  .progressbar > div{height:100%; background:var(--primary);}
+  .phase{border:1px solid var(--border); border-radius:12px; padding:14px; margin-bottom:12px; background:var(--surface-2);}
+  .phase h4{margin:0 0 8px; font-family:var(--font-display); font-size:15.5px;}
+  .checkitem{display:flex; align-items:center; gap:8px; padding:4px 0; font-size:14px;}
+  .checkitem input{width:auto;}
+  .ticket-card{border:1px solid var(--border); border-radius:12px; padding:14px; margin-bottom:10px; background:#fff;}
+  .ticket-top{display:flex; justify-content:space-between; gap:10px; align-items:flex-start; margin-bottom:8px; flex-wrap:wrap;}
+  .modal-bg{position:fixed; inset:0; background:rgba(20,26,18,.45); display:flex; align-items:center; justify-content:center; z-index:50; padding:20px;}
+  .modal{background:#fff; border-radius:16px; padding:22px; max-width:460px; width:100%; box-shadow:var(--shadow); max-height:88vh; overflow-y:auto;}
+  .modal h3{font-family:var(--font-display); margin-top:0;}
+  .modal .fields{display:flex; flex-direction:column; gap:12px; margin-bottom:16px;}
+  .close-x{all:unset; cursor:pointer; float:left; font-size:20px; color:var(--ink-soft); padding:2px 6px;}
+  .toast{
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+    background:var(--sidebar); color:#fff; padding:10px 20px; border-radius:10px; font-size:13.5px; font-weight:600;
+    box-shadow:var(--shadow); z-index:100;
+  }
+  .barrow{display:flex; align-items:center; gap:10px; margin-bottom:10px;}
+  .barrow .lbl{width:70px; font-weight:700; font-size:13px; flex:0 0 70px;}
+  .barrow .track{flex:1; height:20px; background:var(--surface-2); border-radius:6px; overflow:hidden; border:1px solid var(--border); position:relative;}
+  .barrow .fill{height:100%; background:var(--primary);}
+  .barrow .fill.neg{background:var(--red);}
+  .barrow .val{width:100px; flex:0 0 100px; text-align:left; font-weight:700; font-variant-numeric:tabular-nums;}
+  .icon-btn{all:unset; cursor:pointer; color:var(--ink-soft); padding:4px;}
+  .icon-btn:hover{color:var(--ink);}
+
+  .alert-banner{
+    background:linear-gradient(135deg, #fff 0%, var(--red-tint) 120%);
+    border:2px solid var(--red);
+    border-radius:var(--radius);
+    padding:18px 20px;
+    margin-bottom:22px;
+    box-shadow:0 6px 20px rgba(178,59,46,.18);
+  }
+  .alert-banner h2{
+    color:var(--red); font-family:var(--font-display); font-weight:700; font-size:19px;
+    margin:0 0 12px; display:flex; align-items:center; gap:8px;
+  }
+  .alert-item{
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+    padding:11px 0; border-bottom:1px dashed rgba(178,59,46,.3); flex-wrap:wrap;
+  }
+  .alert-item:last-child{border-bottom:none;}
+  .alert-item .txt{font-weight:700; font-size:14.5px;}
+  .alert-item .meta{font-size:12px; color:var(--ink-soft); margin-top:2px;}
+  @keyframes pulseGlow{
+    0%,100%{ box-shadow:0 6px 20px rgba(178,59,46,.2); }
+    50%{ box-shadow:0 8px 30px rgba(178,59,46,.42); }
+  }
+  .alert-banner.has-critical{ animation:pulseGlow 1.8s ease-in-out infinite; }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="mark"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="1.9"><path d="M12 3 3 8v3c0 5.2 3.6 9 9 10 5.4-1 9-4.8 9-10V8l-9-5Z"/><path d="M12 8v6M9 11h6"/></svg></span>
+      <span class="brand-text">מוקד הרשת<small>ניהול 6 סניפי גן</small></span>
+    </div>
+    <ul class="nav" id="nav">
+      <li><button data-tab="dashboard"><span class="ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg></span> דשבורד</button></li>
+      <li><button data-tab="inventory"><span class="ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7l9-4 9 4-9 4-9-4Z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg></span> ניהול מלאי</button></li>
+      <li><button data-tab="wizard"><span class="ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18"/></svg></span> הקמת סניף חדש</button></li>
+      <li><button data-tab="tickets"><span class="ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 9h8M8 13h5"/></svg></span> פניות ותקלות</button></li>
+      <li><button data-tab="suppliers"><span class="ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h3l2 5-2.5 1.5a11 11 0 0 0 5 5L14 13l5 2v3a2 2 0 0 1-2 2C10 20 4 14 4 7a2 2 0 0 1 1-3Z"/></svg></span> ספקים וחוזים</button></li>
+      <li><button data-tab="orders"><span class="ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="20" r="1.4" fill="currentColor" stroke="none"/><circle cx="17" cy="20" r="1.4" fill="currentColor" stroke="none"/><path d="M3 4h2l2.2 11.2a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.6L21 8H6"/></svg></span> רשימות קניות</button></li>
+      <li><button data-tab="licenses"><span class="ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3Z"/><path d="M9 12l2 2 4-4"/></svg></span> רישוי וביטוחים</button></li>
+      <li><button data-tab="financials"><span class="ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V10M10 19V5M16 19v-7M4 19h16" stroke-linecap="round"/></svg></span> רווחיות</button></li>
+    </ul>
+    <div class="sidebar-foot">
+      <div style="margin-bottom:10px;">הנתונים נשמרים אוטומטית בדפדפן הזה בלבד.</div>
+      <button class="btn small" id="export-xlsx-btn" style="width:100%; margin-bottom:8px;">גיבוי לקובץ אקסל</button>
+      <div style="display:flex; gap:6px;">
+        <button class="btn secondary small" id="export-btn" style="flex:1; background:transparent; border-color:rgba(255,255,255,.25); color:var(--sidebar-ink);">גיבוי JSON</button>
+        <button class="btn secondary small" id="import-btn" style="flex:1; background:transparent; border-color:rgba(255,255,255,.25); color:var(--sidebar-ink);">שחזור</button>
+      </div>
+      <input type="file" id="import-file" accept=".json" style="display:none;">
+    </div>
+  </aside>
+  <main class="main" id="main"></main>
+</div>
+<div id="modal-root"></div>
+<div id="toast-root"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  // ---------- Defaults ----------
+  function defaultBranches(){
+    var arr=[];
+    for(var i=1;i<=6;i++){
+      arr.push({id:'b'+i, name:'סניף '+i, address:'', opened:true, notes:''});
+    }
+    return arr;
+  }
+  function defaultInventoryFor(){
+    return {
+      furniture:[
+        {id:uid(), name:'שולחנות', qty:0},
+        {id:uid(), name:'כיסאות', qty:0},
+        {id:uid(), name:'מגירות אישיות', qty:0},
+        {id:uid(), name:'מזרני שינה', qty:0}
+      ],
+      fixed:[
+        {id:uid(), name:'מתקני חצר', qty:0},
+        {id:uid(), name:'מקררים', qty:0},
+        {id:uid(), name:'תנורים', qty:0},
+        {id:uid(), name:'מזגנים', qty:0}
+      ],
+      consumables:[
+        {id:uid(), name:'חומרי יצירה', qty:0, minQty:5},
+        {id:uid(), name:'חומרי ניקוי', qty:0, minQty:5},
+        {id:uid(), name:'נייר טואלט', qty:0, minQty:10}
+      ]
+    };
+  }
+  function wizardPhases(){
+    return [
+      {id:'p1', title:"שלב א' — בירוקרטיה", items:[
+        {id:uid(), text:'רישוי עסק', done:false},
+        {id:uid(), text:'חוזה שכירות', done:false},
+        {id:uid(), text:'ביטוח מבנה', done:false},
+        {id:uid(), text:'ביטוח צד ג׳', done:false}
+      ]},
+      {id:'p2', title:"שלב ב' — שיפוץ ותשתיות", items:[
+        {id:uid(), text:'שיפוץ וצביעה', done:false},
+        {id:uid(), text:'התקנת מצלמות', done:false},
+        {id:uid(), text:'בדיקת בטיחות אש', done:false},
+        {id:uid(), text:'התקנת מיזוג', done:false}
+      ]},
+      {id:'p3', title:"שלב ג' — רכש מלאי וריהוט", items:[
+        {id:uid(), text:'הזמנת ריהוט לפי תקן', done:false},
+        {id:uid(), text:'הזמנת מזרנים', done:false},
+        {id:uid(), text:'הזמנת ציוד יצירה', done:false}
+      ]},
+      {id:'p4', title:"שלב ד' — כוח אדם ושיווק", items:[
+        {id:uid(), text:'גיוס גננות וסייעות', done:false},
+        {id:uid(), text:'פרסום ורישום ילדים', done:false},
+        {id:uid(), text:'יום פתוח', done:false}
+      ]}
+    ];
+  }
+  function defaultLicensesFor(branchId){
+    var types=['רישיון עסק','ביטוח מבנה','אישור בטיחות אש','אישור תברואה'];
+    return types.map(function(t){return {id:uid(), branchId:branchId, type:t, expiry:''};});
+  }
+
+  function uid(){ return 'x'+Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4); }
+
+  function buildDefaultState(){
+    var branches = defaultBranches();
+    var inventory = {}, financials = {}, wizard = {};
+    var licenses = [];
+    branches.forEach(function(b){
+      inventory[b.id] = defaultInventoryFor();
+      financials[b.id] = {revenue:0, rent:0, salaries:0, bills:0, purchasing:0};
+      licenses = licenses.concat(defaultLicensesFor(b.id));
+    });
+    return {
+      branches: branches,
+      inventory: inventory,
+      transfers: [],
+      deliveries: [],
+      reminders: [],
+      orderLists: [],
+      settings: {email:''},
+      customTicketTypes: [],
+      wizard: wizard, // branchId -> {phases}
+      tickets: [],
+      suppliers: [],
+      licenses: licenses,
+      financials: financials
+    };
+  }
+
+  // ---------- State + Storage ----------
+  // Plain browser localStorage: works fully offline, no server, no account,
+  // no external tokens. Data lives in THIS browser on THIS device only.
+  // Use the export/import buttons in the sidebar to back up or move data
+  // to another computer.
+  var STORE_KEY = 'gan-network-state-v2';
+  var state = null;
+  var saveTimer = null;
+  var storageOK = true;
+
+  function scheduleSave(){
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(persist, 400);
+  }
+  function persist(){
+    if(!storageOK) return;
+    try{
+      localStorage.setItem(STORE_KEY, JSON.stringify(state));
+    }catch(err){
+      console.error('save failed', err);
+      storageOK = false;
+      showToast('שמירה מקומית נכשלה — ייתכן שהזיכרון של הדפדפן מלא');
+    }
+  }
+  function loadState(){
+    return new Promise(function(resolve){
+      try{
+        var raw = localStorage.getItem(STORE_KEY);
+        if(raw){
+          state = migrate(JSON.parse(raw));
+        } else {
+          state = buildDefaultState();
+        }
+      }catch(e){
+        state = buildDefaultState();
+      }
+      resolve();
+    });
+  }
+  function exportData(){
+    var blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'גיבוי-מוקד-הרשת-' + new Date().toISOString().slice(0,10) + '.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+    showToast('הקובץ הורד למחשב');
+  }
+  function exportExcel(){
+    if(typeof XLSX === 'undefined'){
+      showToast('לא הצלחתי לטעון את ספריית האקסל — בדוק חיבור לאינטרנט ונסה שוב');
+      return;
+    }
+    try{
+      var wb = XLSX.utils.book_new();
+
+      // Branches
+      var branchRows = state.branches.map(function(b){
+        return {'סניף':b.name, 'כתובת':b.address||'', 'סטטוס':b.opened?'פתוח':'בהקמה', 'הערות ומשימות':b.notes||''};
+      });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(branchRows), 'סניפים');
+
+      // Inventory
+      var invRows = [];
+      var catLabel = {furniture:'ריהוט', fixed:'ציוד קבוע', consumables:'ציוד מתכלה'};
+      state.branches.forEach(function(b){
+        ['furniture','fixed','consumables'].forEach(function(cat){
+          state.inventory[b.id][cat].forEach(function(it){
+            invRows.push({'סניף':b.name, 'קטגוריה':catLabel[cat], 'פריט':it.name, 'כמות':it.qty, 'סף אזהרה': it.minQty!=null? it.minQty : ''});
+          });
+        });
+      });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(invRows), 'מלאי');
+
+      // Transfers
+      var trRows = state.transfers.map(function(t){
+        return {'תאריך':t.date, 'פריט':t.item, 'מסניף':branchName(t.from), 'לסניף':branchName(t.to), 'כמות':t.qty};
+      });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(trRows), 'העברות');
+
+      // Deliveries (goods received)
+      var dvRows = state.deliveries.map(function(d){
+        return {'תאריך':d.date, 'סניף':branchName(d.branchId), 'קטגוריה':CAT_LABEL[d.cat]||d.cat, 'פריט':d.item, 'כמות שהתקבלה':d.qty, 'הערה / ספק':d.note||''};
+      });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dvRows), 'קליטות מלאי');
+
+      // Reminders
+      var remRows = state.reminders.map(function(r){
+        return {'סניף':branchName(r.branchId), 'משימה':r.text, 'תאריך יעד':r.dueDate||'', 'דחיפות':URGENCY_LABEL[r.urgency]||r.urgency, 'סטטוס':r.done?'טופל':'פתוח'};
+      });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(remRows), 'תזכורות');
+
+      // Tickets
+      var ticketRows = state.tickets.map(function(t){
+        return {'תאריך':t.date, 'סניף':ticketBranchDisplay(t), 'סוג':(getAllTicketTypes()[t.type]||{}).label||t.type, 'סטטוס':TICKET_STATUS_LABEL[t.status], 'תיאור':t.text};
+      });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ticketRows), 'פניות ותקלות');
+
+      // Suppliers
+      var supRows = state.suppliers.map(function(s){
+        return {'שם':s.name, 'תחום':s.category, 'טלפון':s.phone, 'הסכם / הערות':s.terms};
+      });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(supRows), 'ספקים');
+
+      // Licenses
+      var licRows = state.licenses.map(function(l){
+        var d = daysUntil(l.expiry);
+        var status = !l.expiry ? 'לא הוגדר' : (d<0 ? 'פג תוקף' : (d<=30 ? 'לתשומת לב' : 'בתוקף'));
+        return {'סניף':branchName(l.branchId), 'סוג':l.type, 'תוקף':l.expiry||'', 'סטטוס':status};
+      });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(licRows), 'רישוי וביטוחים');
+
+      // Financials
+      var finRows = state.branches.map(function(b){
+        var f = state.financials[b.id];
+        var expenses = (f.rent||0)+(f.salaries||0)+(f.bills||0)+(f.purchasing||0);
+        var profit = (f.revenue||0)-expenses;
+        return {'סניף':b.name, 'שכר לימוד':f.revenue, 'שכירות':f.rent, 'משכורות':f.salaries, 'חשבונות':f.bills, 'רכש':f.purchasing, 'רווח נקי':profit};
+      });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(finRows), 'רווחיות');
+
+      XLSX.writeFile(wb, 'גיבוי-מוקד-הרשת-' + new Date().toISOString().slice(0,10) + '.xlsx');
+      showToast('קובץ האקסל הורד');
+    }catch(e){
+      console.error(e);
+      showToast('הייצוא לאקסל נכשל');
+    }
+  }
+  function importData(file){
+    var reader = new FileReader();
+    reader.onload = function(){
+      try{
+        var parsed = JSON.parse(reader.result);
+        state = migrate(parsed);
+        scheduleSave();
+        render();
+        showToast('הנתונים יובאו בהצלחה');
+      }catch(e){
+        showToast('הקובץ לא תקין');
+      }
+    };
+    reader.readAsText(file);
+  }
+  function migrate(s){
+    // ensure structural completeness if fields missing
+    var base = buildDefaultState();
+    s.branches = s.branches || base.branches;
+    s.inventory = s.inventory || {};
+    s.transfers = s.transfers || [];
+    s.deliveries = s.deliveries || [];
+    s.reminders = s.reminders || [];
+    s.orderLists = s.orderLists || [];
+    s.settings = s.settings || {email:''};
+    if(s.settings.email==null) s.settings.email = '';
+    s.customTicketTypes = s.customTicketTypes || [];
+    s.wizard = s.wizard || {};
+    s.tickets = s.tickets || [];
+    s.suppliers = s.suppliers || [];
+    s.licenses = s.licenses || [];
+    s.financials = s.financials || {};
+    s.branches.forEach(function(b){
+      if(b.notes==null) b.notes='';
+      if(!s.inventory[b.id]) s.inventory[b.id] = defaultInventoryFor();
+      if(!s.financials[b.id]) s.financials[b.id] = {revenue:0, rent:0, salaries:0, bills:0, purchasing:0};
+    });
+    return s;
+  }
+
+  function showToast(msg){
+    var root = document.getElementById('toast-root');
+    root.innerHTML = '<div class="toast">'+esc(msg)+'</div>';
+    setTimeout(function(){ root.innerHTML=''; }, 2200);
+  }
+
+  function esc(str){
+    return String(str==null?'':str).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  function fmtMoney(n){
+    n = Number(n)||0;
+    return '₪' + n.toLocaleString('he-IL');
+  }
+  function daysUntil(dateStr){
+    if(!dateStr) return null;
+    var d = new Date(dateStr+'T00:00:00');
+    var now = new Date();
+    now.setHours(0,0,0,0);
+    return Math.round((d-now)/86400000);
+  }
+
+  // ---------- Router ----------
+  var currentTab = 'dashboard';
+  var branchFilter = 'all'; // used in inventory/tickets/licenses
+  var currentOrderId = null; // used in orders tab
+
+  document.getElementById('nav').addEventListener('click', function(e){
+    var btn = e.target.closest('button[data-tab]');
+    if(!btn) return;
+    currentTab = btn.getAttribute('data-tab');
+    render();
+  });
+
+  function setActiveNav(){
+    document.querySelectorAll('#nav button').forEach(function(b){
+      b.classList.toggle('active', b.getAttribute('data-tab')===currentTab);
+    });
+  }
+
+  function branchName(id){
+    var b = state.branches.find(function(x){return x.id===id;});
+    return b ? b.name : id;
+  }
+
+  // ---------- Render dispatch ----------
+  function render(){
+    setActiveNav();
+    var main = document.getElementById('main');
+    if(currentTab==='dashboard') main.innerHTML = renderDashboard();
+    else if(currentTab==='inventory') main.innerHTML = renderInventory();
+    else if(currentTab==='wizard') main.innerHTML = renderWizard();
+    else if(currentTab==='tickets') main.innerHTML = renderTickets();
+    else if(currentTab==='suppliers') main.innerHTML = renderSuppliers();
+    else if(currentTab==='orders') main.innerHTML = renderOrders();
+    else if(currentTab==='licenses') main.innerHTML = renderLicenses();
+    else if(currentTab==='financials') main.innerHTML = renderFinancials();
+    attachHandlers();
+  }
+
+  // ================= DASHBOARD =================
+  function branchHealth(b){
+    var urgentOpen = state.tickets.filter(function(t){return t.branchId===b.id && t.type==='urgent' && t.status!=='done';}).length;
+    var pendingAny = state.tickets.filter(function(t){return t.branchId===b.id && t.status!=='done';}).length;
+    var lic = state.licenses.filter(function(l){return l.branchId===b.id;});
+    var expired = lic.some(function(l){ var d=daysUntil(l.expiry); return d!==null && d<0; });
+    var soon = lic.some(function(l){ var d=daysUntil(l.expiry); return d!==null && d>=0 && d<=30; });
+    var fin = state.financials[b.id] || {};
+    var profit = (fin.revenue||0) - ((fin.rent||0)+(fin.salaries||0)+(fin.bills||0)+(fin.purchasing||0));
+    var status = 'green';
+    if(urgentOpen>0 || expired) status = 'red';
+    else if(soon || profit<0 || pendingAny>0) status = 'amber';
+    return {status:status, urgentOpen:urgentOpen, pendingAny:pendingAny, expired:expired, soon:soon, profit:profit};
+  }
+
+  function getActiveAlerts(){
+    return state.reminders.filter(function(r){
+      if(r.done) return false;
+      var d = daysUntil(r.dueDate);
+      return d!==null && d<=0;
+    }).sort(function(a,b){ return (a.dueDate||'').localeCompare(b.dueDate||''); });
+  }
+  var URGENCY_LABEL = {normal:'רגיל', urgent:'דחוף', critical:'חמור'};
+  var URGENCY_TONE = {normal:'grey', urgent:'amber', critical:'red'};
+
+  function renderDashboard(){
+    var alerts = getActiveAlerts();
+    var alertHtml = '';
+    if(alerts.length){
+      var hasCritical = alerts.some(function(a){ return a.urgency==='critical'; });
+      var items = alerts.map(function(a){
+        var d = daysUntil(a.dueDate);
+        var whenTxt = d===0 ? 'היום' : ('לפני '+Math.abs(d)+' ימים');
+        return '<div class="alert-item">'+
+          '<div><div class="txt">'+esc(branchName(a.branchId))+' — '+esc(a.text)+'</div>'+
+          '<div class="meta">דחיפות: '+URGENCY_LABEL[a.urgency]+' · תאריך יעד היה: '+esc(a.dueDate)+' ('+whenTxt+')</div></div>'+
+          '<button class="btn danger small" data-reminder-done="'+a.id+'">סמן כטופל</button>'+
+        '</div>';
+      }).join('');
+      alertHtml = '<div class="alert-banner'+(hasCritical?' has-critical':'')+'">'+
+        '<h2>⚠ התראות פתוחות לטיפול ('+alerts.length+')</h2>'+
+        items+
+      '</div>';
+    }
+    return alertHtml + renderDashboardBody();
+  }
+
+  function renderDashboardBody(){
+    var n = state.branches.length;
+    var R = 200, cx=280, cy=280;
+    var nodesHtml = '';
+    var linesHtml = '';
+    state.branches.forEach(function(b, i){
+      var angle = (Math.PI*2 * i / n) - Math.PI/2;
+      var x = cx + R*Math.cos(angle);
+      var y = cy + R*Math.sin(angle);
+      var h = branchHealth(b);
+      linesHtml += '<line x1="'+cx+'" y1="'+cy+'" x2="'+x+'" y2="'+y+'" stroke="var(--border)" stroke-width="2" stroke-dasharray="4 5"/>';
+      nodesHtml += '<div class="node status-'+h.status+'" style="top:'+ (y/560*100) +'%; left:'+ (x/560*100) +'%;" data-goto-branch="'+b.id+'">'+
+        '<div class="dot">'+ (i+1) +'</div>'+
+        '<div class="lbl">'+esc(b.name)+'</div>'+
+        '<div class="sub">'+(h.urgentOpen>0? h.urgentOpen+' דחוף · ' : '')+fmtMoney(h.profit)+'</div>'+
+      '</div>';
+    });
+
+    var totalUrgent = state.tickets.filter(function(t){return t.type==='urgent' && t.status!=='done';}).length;
+    var totalPending = state.tickets.filter(function(t){return t.status!=='done';}).length;
+    var totalProfit = state.branches.reduce(function(sum,b){ return sum + branchHealth(b).profit; },0);
+    var expSoon = state.licenses.filter(function(l){ var d=daysUntil(l.expiry); return d!==null && d<=30; }).length;
+
+    return ''+
+    '<div class="topline">'+
+      '<div><h1 class="page-title">דשבורד רשת</h1><div class="page-sub">מבט על — כל 6 הסניפים במקום אחד</div></div>'+
+    '</div>'+
+    '<div class="card" style="margin-bottom:18px;">'+
+      '<h2 class="section-title">שמות הסניפים</h2>'+
+      '<div class="grid cols-3">'+
+        state.branches.map(function(b){
+          return '<label class="field">'+ '<input type="text" value="'+esc(b.name)+'" data-branch-rename="'+b.id+'" style="font-weight:700;">'+'</label>';
+        }).join('')+
+      '</div>'+
+    '</div>'+
+    '<div class="grid cols-3" style="margin-bottom:22px;">'+
+      statCard('פניות פתוחות', totalPending, totalUrgent>0? (totalUrgent+' דחופות') : 'הכול תקין', totalUrgent>0?'red':'green')+
+      statCard('רווח נקי כולל (חודשי)', fmtMoney(totalProfit), totalProfit>=0?'רשת רווחית':'בהפסד', totalProfit>=0?'green':'red')+
+      statCard('רישיונות לתשומת לב', expSoon, expSoon>0?'פגות תוקף בקרוב או עברו':'הכול בתוקף', expSoon>0?'amber':'green')+
+    '</div>'+
+    '<div class="card">'+
+      '<h2 class="section-title">מפת הסניפים</h2>'+
+      '<div class="netwrap">'+
+        '<svg class="netlines" viewBox="0 0 560 560">'+linesHtml+'</svg>'+
+        '<div class="hub">רשת<br>הגנים</div>'+
+        nodesHtml+
+      '</div>'+
+      '<p class="muted" style="text-align:center; font-size:12.5px; margin-top:10px;">לחצו על סניף כדי לראות את המלאי שלו. טבעת אדומה = דורש טיפול מיידי, כתומה = לעקוב, ירוקה = תקין.</p>'+
+    '</div>';
+  }
+  function statCard(label, value, sub, tone){
+    return '<div class="card"><div class="stat-lbl">'+esc(label)+'</div>'+
+      '<div class="stat-num">'+value+'</div>'+
+      '<span class="pill '+tone+'">'+esc(sub)+'</span></div>';
+  }
+
+  // ================= INVENTORY =================
+  function renderInventory(){
+    var branches = state.branches;
+    var opts = branches.map(function(b){return '<option value="'+b.id+'" '+(branchFilter===b.id?'selected':'')+'>'+esc(b.name)+'</option>';}).join('');
+    var activeId = branchFilter==='all' ? branches[0].id : branchFilter;
+    var inv = state.inventory[activeId];
+    var activeBranch = branches.find(function(b){return b.id===activeId;});
+
+    function catBlock(key, label, hasMin){
+      var rows = inv[key].map(function(item){
+        var low = hasMin && item.minQty!=null && item.qty < item.minQty;
+        return '<div class="item-row">'+
+          '<span class="item-name">'+esc(item.name)+'</span>'+
+          (low? '<span class="pill red">מתחת לסף</span>' : '')+
+          '<div class="qty-box">'+
+            '<button class="btn secondary small" data-inv-dec="'+key+'|'+item.id+'">–</button>'+
+            '<input type="number" min="0" value="'+item.qty+'" data-inv-set="'+key+'|'+item.id+'">'+
+            '<button class="btn secondary small" data-inv-inc="'+key+'|'+item.id+'">+</button>'+
+          '</div>'+
+          (hasMin? '<span class="muted" style="font-size:12px;">סף: <input type="number" min="0" style="width:52px; display:inline-block;" value="'+(item.minQty||0)+'" data-inv-min="'+key+'|'+item.id+'"></span>' : '')+
+          '<button class="btn secondary small" title="קליטת משלוח שהגיע" data-receive="'+key+'|'+item.id+'">קליטת משלוח</button>'+
+          '<button class="icon-btn" title="מחק" data-inv-del="'+key+'|'+item.id+'">✕</button>'+
+        '</div>';
+      }).join('') || '<div class="muted" style="padding:8px 0;">אין פריטים עדיין</div>';
+      return '<div class="cat-header">'+label+'<span class="dash"></span></div>'+
+        rows+
+        '<div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">'+
+          '<input type="text" placeholder="פריט חדש... (למשל: אקונומיקה)" id="new-'+key+'-name" style="flex:1; min-width:140px;">'+
+          '<input type="number" placeholder="כמות שהגיעה" min="0" id="new-'+key+'-qty" style="width:120px;">'+
+          (hasMin? '<input type="number" placeholder="סף" min="0" id="new-'+key+'-min" style="width:80px;">' : '')+
+          '<button class="btn small" data-inv-add="'+key+'">הוסף</button>'+
+        '</div>';
+    }
+
+    return ''+
+    '<div class="topline"><div><h1 class="page-title">ניהול מלאי רשתי</h1><div class="page-sub">מה יש בכל סניף, לפי קטגוריה</div></div></div>'+
+    '<div class="branch-select-row"><label class="muted" style="font-weight:700; font-size:13px;">סניף:</label>'+
+      '<select id="inv-branch-select" style="width:220px;">'+opts+'</select></div>'+
+    '<div class="grid cols-2" style="align-items:start;">'+
+      '<div class="card">'+
+        catBlock('furniture','ריהוט', false)+
+        catBlock('fixed','ציוד קבוע', false)+
+        catBlock('consumables','ציוד מתכלה (רמת אזהרה)', true)+
+        '<h2 class="section-title" style="margin-top:20px;">היסטוריית קליטות מלאי</h2>'+
+        renderDeliveryLog(activeId)+
+      '</div>'+
+      '<div class="card">'+
+        '<h2 class="section-title">העברה בין סניפים</h2>'+
+        renderTransferForm(activeId)+
+        '<h2 class="section-title" style="margin-top:22px;">היסטוריית העברות</h2>'+
+        renderTransferLog()+
+      '</div>'+
+    '</div>'+
+    '<div class="card" style="margin-top:16px;">'+
+      '<h2 class="section-title">הערות ומשימות לביצוע — '+esc(activeBranch.name)+'</h2>'+
+      '<textarea id="branch-notes" rows="10" placeholder="כל מה שצריך לזכור, לבצע או לעקוב אחריו בסניף הזה — משימות פתוחות, תזכורות, דברים לבדוק בביקור הבא..." style="resize:vertical; min-height:200px; line-height:1.6;">'+esc(activeBranch.notes||'')+'</textarea>'+
+      '<div class="muted" style="font-size:12px; margin-top:6px;">נשמר אוטומטית תוך כדי הקלדה.</div>'+
+    '</div>'+
+    '<div class="card" style="margin-top:16px;">'+
+      '<h2 class="section-title">תזכורות עם תאריך ודחיפות — '+esc(activeBranch.name)+'</h2>'+
+      '<p class="muted" style="font-size:12.5px; margin-top:-6px; margin-bottom:12px;">כשמגיע התאריך, תופיע התראה בולטת בדשבורד הראשי — עד שתסמן שטופל.</p>'+
+      renderReminders(activeId)+
+    '</div>';
+  }
+
+  function renderReminders(activeId){
+    var list = state.reminders.filter(function(r){ return r.branchId===activeId; });
+    list.sort(function(a,b){ return (a.dueDate||'9999-99-99').localeCompare(b.dueDate||'9999-99-99'); });
+    var rows = list.map(function(r){
+      var d = daysUntil(r.dueDate);
+      var overdue = !r.done && d!==null && d<=0;
+      return '<div class="item-row" style="'+(overdue?'background:var(--red-tint); border-radius:8px; padding:8px 10px;':'')+'">'+
+        '<span class="item-name" style="'+(r.done?'text-decoration:line-through; color:var(--ink-soft);':'')+'">'+esc(r.text)+'</span>'+
+        '<span class="pill '+URGENCY_TONE[r.urgency]+'">'+URGENCY_LABEL[r.urgency]+'</span>'+
+        '<span class="muted" style="font-size:12.5px;">'+(r.dueDate? 'עד '+esc(r.dueDate) : 'ללא תאריך')+'</span>'+
+        (r.done? '<span class="pill green">טופל</span>' : '<button class="btn secondary small" data-reminder-done="'+r.id+'">סמן כטופל</button>')+
+        '<button class="icon-btn" title="מחק" data-reminder-del="'+r.id+'">✕</button>'+
+      '</div>';
+    }).join('') || '<div class="muted" style="padding:8px 0 14px;">אין תזכורות עדיין</div>';
+
+    return rows+
+      '<div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">'+
+        '<input type="text" placeholder="מה צריך לטפל בו..." id="new-reminder-text" style="flex:1; min-width:160px;">'+
+        '<input type="date" id="new-reminder-date" style="width:150px;">'+
+        '<select id="new-reminder-urgency" style="width:100px;">'+
+          '<option value="normal">רגיל</option>'+
+          '<option value="urgent">דחוף</option>'+
+          '<option value="critical">חמור</option>'+
+        '</select>'+
+        '<button class="btn small" id="add-reminder-btn">הוסף תזכורת</button>'+
+      '</div>';
+  }
+
+  function allItemsFlat(){
+    var out = [];
+    state.branches.forEach(function(b){
+      ['furniture','fixed','consumables'].forEach(function(cat){
+        state.inventory[b.id][cat].forEach(function(it){
+          out.push({branchId:b.id, cat:cat, id:it.id, name:it.name, qty:it.qty});
+        });
+      });
+    });
+    return out;
+  }
+
+  function renderTransferForm(activeId){
+    var branchOpts = state.branches.map(function(b){return '<option value="'+b.id+'">'+esc(b.name)+'</option>';}).join('');
+    var fromId = activeId;
+    var items = [];
+    ['furniture','fixed','consumables'].forEach(function(cat){
+      state.inventory[fromId][cat].forEach(function(it){
+        items.push('<option value="'+cat+'|'+it.id+'">'+esc(it.name)+' (מלאי: '+it.qty+')</option>');
+      });
+    });
+    return '<div class="grid cols-2" style="margin-bottom:10px;">'+
+      '<label class="field">מסניף<select id="tr-from">'+branchOpts+'</select></label>'+
+      '<label class="field">לסניף<select id="tr-to">'+branchOpts+'</select></label>'+
+    '</div>'+
+    '<label class="field" style="margin-bottom:10px;">פריט<select id="tr-item">'+items.join('')+'</select></label>'+
+    '<div style="display:flex; gap:10px; align-items:flex-end;">'+
+      '<label class="field" style="flex:1;">כמות להעברה<input type="number" min="1" value="1" id="tr-qty"></label>'+
+      '<button class="btn" id="tr-submit">בצע העברה</button>'+
+    '</div>';
+  }
+
+  function renderTransferLog(){
+    if(state.transfers.length===0) return '<div class="empty">עוד לא בוצעו העברות</div>';
+    var rows = state.transfers.slice().reverse().slice(0,12).map(function(t){
+      return '<tr><td>'+esc(t.date)+'</td><td>'+esc(t.item)+'</td><td>'+esc(branchName(t.from))+' ← '+esc(branchName(t.to))+'</td><td class="num">'+t.qty+'</td></tr>';
+    }).join('');
+    return '<table><thead><tr><th>תאריך</th><th>פריט</th><th>מסלול</th><th>כמות</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  }
+
+  var CAT_LABEL = {furniture:'ריהוט', fixed:'ציוד קבוע', consumables:'מתכלים'};
+  function renderDeliveryLog(activeId){
+    var list = state.deliveries.filter(function(d){ return d.branchId===activeId; }).slice().reverse().slice(0,15);
+    if(list.length===0) return '<div class="empty">עוד לא נקלטו משלוחים בסניף זה</div>';
+    var rows = list.map(function(d){
+      return '<tr><td>'+esc(d.date)+'</td><td>'+esc(d.item)+'</td><td>'+esc(CAT_LABEL[d.cat]||'')+'</td>'+
+        '<td class="num" style="color:var(--primary-dark);">+'+d.qty+'</td>'+
+        '<td class="muted" style="font-size:12.5px;">'+esc(d.note||'')+'</td></tr>';
+    }).join('');
+    return '<table><thead><tr><th>תאריך</th><th>פריט</th><th>קטגוריה</th><th>כמות שהתקבלה</th><th>הערה / ספק</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  }
+
+  // ================= WIZARD =================
+  function renderWizard(){
+    var settingUp = state.branches.filter(function(b){ return state.wizard[b.id]; });
+    var readyBranches = state.branches.filter(function(b){ return !state.wizard[b.id]; });
+
+    var cardsHtml = settingUp.map(function(b){
+      var w = state.wizard[b.id];
+      var total=0, done=0;
+      w.phases.forEach(function(p){ p.items.forEach(function(it){ total++; if(it.done) done++; }); });
+      var pct = total? Math.round(done/total*100) : 0;
+      var phasesHtml = w.phases.map(function(p){
+        var itemsHtml = p.items.map(function(it){
+          return '<label class="checkitem"><input type="checkbox" '+(it.done?'checked':'')+' data-wizard-check="'+b.id+'|'+p.id+'|'+it.id+'"> '+esc(it.text)+'</label>';
+        }).join('');
+        return '<div class="phase"><h4>'+esc(p.title)+'</h4>'+itemsHtml+'</div>';
+      }).join('');
+      return '<div class="card" style="margin-bottom:18px;">'+
+        '<div class="flexrow" style="margin-bottom:10px;">'+
+          '<h2 class="section-title" style="margin:0;">'+esc(b.name)+' — בהקמה</h2>'+
+          '<div style="display:flex; gap:8px; align-items:center;">'+
+            '<span class="pill '+(pct===100?'green':'amber')+'">'+pct+'%</span>'+
+            (pct===100? '<button class="btn small" data-wizard-finish="'+b.id+'">סמן כפתוח</button>' : '')+
+          '</div>'+
+        '</div>'+
+        '<div class="progressbar" style="margin-bottom:16px;"><div style="width:'+pct+'%;"></div></div>'+
+        phasesHtml+
+      '</div>';
+    }).join('') || '';
+
+    var readyOpts = readyBranches.map(function(b){return '<option value="'+b.id+'">'+esc(b.name)+'</option>';}).join('');
+
+    return ''+
+    '<div class="topline"><div><h1 class="page-title">הקמת סניף חדש</h1><div class="page-sub">צ׳ק-ליסט מא׳ ועד ת׳ לפתיחת הסניף הבא</div></div></div>'+
+    cardsHtml+
+    '<div class="card">'+
+      '<h2 class="section-title">התחלת הקמה חדשה</h2>'+
+      (readyBranches.length ?
+        ('<div class="toolbar"><label class="muted" style="font-weight:700;">התחל תהליך הקמה עבור:</label>'+
+        '<select id="wizard-target-existing" style="width:200px;">'+readyOpts+'</select>'+
+        '<button class="btn secondary" id="wizard-start-existing">התחל הקמה</button></div>'+
+        '<p class="muted" style="font-size:13px;">או, אם זה סניף חדש לגמרי (למשל הסניף השביעי):</p>') : '')+
+      '<div class="toolbar">'+
+        '<input type="text" id="new-branch-name" placeholder="שם הסניף החדש (למשל: סניף 7)" style="width:240px;">'+
+        '<button class="btn" id="wizard-create-new">צור סניף חדש והתחל הקמה</button>'+
+      '</div>'+
+    '</div>';
+  }
+
+  // ================= TICKETS =================
+  var TICKET_TYPES = {
+    urgent: {label:'תקלת תחזוקה דחופה', tone:'red', supplierCat:null},
+    purchase: {label:'בקשת רכש/מלאי', tone:'amber'},
+    general: {label:'הערה כללית / בקשת עובדים', tone:'blue'}
+  };
+  var TICKET_STATUS = ['waiting','in_progress','supplier_ordered','done'];
+  var TICKET_STATUS_LABEL = {waiting:'ממתין', in_progress:'בטיפול', supplier_ordered:'הוזמן ספק', done:'בוצע'};
+  function getAllTicketTypes(){
+    var all = {};
+    Object.keys(TICKET_TYPES).forEach(function(k){ all[k] = TICKET_TYPES[k]; });
+    (state.customTicketTypes || []).forEach(function(ct){ all[ct.key] = {label: ct.label, tone: ct.tone || 'blue'}; });
+    return all;
+  }
+
+  function renderTickets(){
+    var branchOpts = '<option value="all">כל הסניפים</option>' + state.branches.map(function(b){return '<option value="'+b.id+'" '+(branchFilter===b.id?'selected':'')+'>'+esc(b.name)+'</option>';}).join('');
+    var list = state.tickets.filter(function(t){ return branchFilter==='all' || t.branchId===branchFilter; });
+    list = list.slice().sort(function(a,b){
+      if(a.status==='done' && b.status!=='done') return 1;
+      if(b.status==='done' && a.status!=='done') return -1;
+      if(a.type==='urgent' && b.type!=='urgent') return -1;
+      if(b.type==='urgent' && a.type!=='urgent') return 1;
+      return (b.date||'').localeCompare(a.date||'');
+    });
+
+    var connPill = !remoteReady ? '<span class="pill grey">חיבור לענן לא הוגדר</span>' :
+      (lastSyncOK===true ? '<span class="pill green">מחובר ומסונכרן ✓</span>' :
+      (lastSyncOK===false ? '<span class="pill red">בעיית חיבור לענן</span>' : '<span class="pill amber">מתחבר…</span>'));
+
+    var itemsHtml = list.map(function(t){
+      var tt = getAllTicketTypes()[t.type] || {label:t.type, tone:'grey'};
+      var statusOpts = TICKET_STATUS.map(function(s){return '<option value="'+s+'" '+(t.status===s?'selected':'')+'>'+TICKET_STATUS_LABEL[s]+'</option>';}).join('');
+      var isOpen = expandedTicketId === t.id;
+      var threadHtml = '';
+      if(isOpen){
+        var msgs = ticketMessagesCache[t.id] || [];
+        var closed = t.status === 'done';
+        var msgRows = msgs.map(function(m){
+          var isManager = m.sender==='manager';
+          return '<div style="margin-bottom:8px; padding:8px 10px; border-radius:8px; background:'+(isManager?'var(--primary-tint)':'var(--surface-2)')+';">'+
+            '<div style="font-size:11px; font-weight:700; color:var(--ink-soft); margin-bottom:2px;">'+(isManager?'אתה':'המדווח/ת')+'</div>'+
+            '<div style="font-size:14px;">'+esc(m.message)+'</div>'+
+          '</div>';
+        }).join('') || '<div class="muted" style="font-size:13px; padding:4px 0;">אין תגובות עדיין</div>';
+        threadHtml = '<div style="margin-top:10px; padding-top:10px; border-top:1px dashed var(--border);">'+
+          msgRows+
+          (closed ?
+            '<div class="muted" style="font-size:12.5px; margin-top:8px; padding:8px 10px; background:var(--surface-2); border-radius:8px;">הפנייה סומנה כטופלה — השיחה נסגרה אוטומטית.</div>'
+            :
+            '<div style="display:flex; gap:8px; margin-top:8px;">'+
+              '<input type="text" placeholder="כתבו תגובה..." data-reply-input="'+t.id+'" style="flex:1;">'+
+              '<button class="btn small" data-reply-send="'+t.id+'">שלח</button>'+
+            '</div>'
+          )+
+        '</div>';
+      }
+      return '<div class="ticket-card">'+
+        '<div class="ticket-top">'+
+          '<div><span class="pill '+tt.tone+'">'+tt.label+'</span> <span class="muted" style="font-size:12.5px;">'+esc(ticketBranchDisplay(t))+' · '+esc(t.date)+'</span></div>'+
+          '<button class="icon-btn" data-ticket-del="'+t.id+'">✕</button>'+
+        '</div>'+
+        '<div style="margin-bottom:10px;">'+esc(t.text)+'</div>'+
+        renderAttachmentPreview(t.attachmentUrl)+
+        '<div class="flexrow">'+
+          '<select data-ticket-status="'+t.id+'" style="width:160px;">'+statusOpts+'</select>'+
+          (t.reporterEmail? '<span class="muted" style="font-size:12.5px;">מייל המדווח: '+esc(t.reporterEmail)+'</span>' : (t.supplier? '<span class="muted" style="font-size:12.5px;">ספק: '+esc(t.supplier)+'</span>' : ''))+
+        '</div>'+
+        '<div style="margin-top:8px;"><button class="btn secondary small" data-toggle-thread="'+t.id+'">'+(isOpen?'סגור תגובות':'הצג / הוסף תגובות')+'</button></div>'+
+        threadHtml+
+      '</div>';
+    }).join('') || '<div class="empty">אין פניות בסינון הנוכחי</div>';
+
+    return ''+
+    '<div class="topline"><div><h1 class="page-title">פניות ותקלות</h1><div class="page-sub">מרכז פניות אחד לכל הגננות והמנהלות</div></div>'+
+      '<button class="btn" id="open-new-ticket">פנייה חדשה</button></div>'+
+    '<div class="card" style="margin-bottom:18px;">'+
+      '<div class="flexrow" style="margin-bottom:6px;"><h2 class="section-title" style="margin:0;">קישור לטופס פנייה מרחוק</h2>'+connPill+'</div>'+
+      '<p class="muted" style="font-size:13px; margin-bottom:12px;">שתפו את הקישור עם הגננות והמנהלות. הקישור קבוע — שולחים אותו פעם אחת ואפשר לשמור אותו, גם אם תוסיפו סניפים או תשנו שמות בעתיד. מי שפותח אותו רואה טופס פשוט לדיווח — בלי גישה לשאר המערכת. הפנייה נכנסת ישירות לכאן דרך הענן.</p>'+
+      '<label class="field" style="margin-bottom:12px;">כתובת המייל שלך (יעד לכל הפניות)<input type="text" id="settings-email" value="'+esc((state.settings&&state.settings.email)||'')+'" placeholder="you@example.com" dir="ltr"></label>'+
+      '<div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px;">'+
+        '<input type="text" id="report-link-box" readonly placeholder="לחצו על \'צור קישור\' כדי להפיק קישור" value="'+esc(reportLinkGenerated)+'" style="flex:1; min-width:220px;" dir="ltr">'+
+        '<button class="btn small" id="gen-link-btn">צור קישור</button>'+
+        '<button class="btn secondary small" id="copy-link-btn">העתק</button>'+
+      '</div>'+
+      '<div style="border-top:1px dashed var(--border); padding-top:14px;">'+
+        '<label class="field" style="margin-bottom:10px;">שליחת הקישור לעובד/ת<input type="text" id="employee-email" placeholder="email@example.com (רק לתיוג בהודעה)" dir="ltr" value="'+esc(employeeEmailDraft)+'"></label>'+
+        '<button class="btn small" id="send-employee-link-btn">הכן הודעה לשליחה</button>'+
+        (employeeMessageText ?
+          '<div style="margin-top:12px;">'+
+            '<textarea id="employee-message-box" rows="7" readonly style="font-size:13px; line-height:1.6;" dir="ltr">'+esc(employeeMessageText)+'</textarea>'+
+            '<div style="display:flex; gap:8px; margin-top:8px;">'+
+              '<button class="btn secondary small" id="copy-employee-message-btn">העתק את ההודעה</button>'+
+            '</div>'+
+            '<p class="muted" style="font-size:12px; margin-top:8px;">העתיקו את ההודעה, פתחו בעצמכם הודעה חדשה ב-Gmail / Outlook / וואטסאפ, והדביקו. זה עוקף את הבעיות עם פתיחת מייל אוטומטית בדפדפן.</p>'+
+          '</div>'
+        : '')+
+      '</div>'+
+    '</div>'+
+    renderCustomTypesCard()+
+    '<div class="branch-select-row"><label class="muted" style="font-weight:700; font-size:13px;">סינון לפי סניף:</label>'+
+      '<select id="ticket-branch-filter" style="width:200px;">'+branchOpts+'</select></div>'+
+    itemsHtml;
+  }
+
+  function renderCustomTypesCard(){
+    var toneOpts = {grey:'אפור', blue:'כחול', amber:'כתום', red:'אדום', green:'ירוק'};
+    var toneSelectOpts = Object.keys(toneOpts).map(function(k){return '<option value="'+k+'">'+toneOpts[k]+'</option>';}).join('');
+    var rows = (state.customTicketTypes||[]).map(function(ct){
+      return '<div class="item-row"><span class="pill '+ct.tone+'">'+esc(ct.label)+'</span>'+
+        '<span class="item-name"></span>'+
+        '<button class="icon-btn" title="מחק" data-customtype-del="'+ct.key+'">✕</button>'+
+      '</div>';
+    }).join('') || '<div class="muted" style="padding:6px 0;">אין סוגי פנייה מותאמים אישית עדיין — יש רק את שלושת ברירת המחדל.</div>';
+    return '<div class="card" style="margin-bottom:18px;">'+
+      '<h2 class="section-title">סוגי פנייה נוספים</h2>'+
+      '<p class="muted" style="font-size:13px; margin-bottom:12px;">מעבר לשלושת הסוגים הקבועים (תקלת תחזוקה, בקשת רכש, הערה כללית) — אפשר להוסיף כאן סוגים משלכם. הם יופיעו גם בטופס הפנייה המרוחק.</p>'+
+      rows+
+      '<div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">'+
+        '<input type="text" placeholder="שם הסוג החדש..." id="new-type-label" style="flex:1; min-width:160px;">'+
+        '<select id="new-type-tone" style="width:110px;">'+toneSelectOpts+'</select>'+
+        '<button class="btn small" id="add-type-btn">הוסף סוג</button>'+
+      '</div>'+
+    '</div>';
+  }
+
+  // ================= SUPPLIERS =================
+  var SUPPLIER_CATS = ['טכנאי מיזוג','אינסטלטור','ספק מזון','ספק חומרי יצירה','אחר'];
+  function renderSuppliers(){
+    var rows = state.suppliers.map(function(s){
+      return '<tr>'+
+        '<td>'+esc(s.name)+'</td>'+
+        '<td>'+esc(s.category)+'</td>'+
+        '<td dir="ltr" style="text-align:right;">'+esc(s.phone)+'</td>'+
+        '<td>'+esc(s.terms)+'</td>'+
+        '<td><button class="icon-btn" data-supplier-del="'+s.id+'">✕</button></td>'+
+      '</tr>';
+    }).join('');
+    var table = state.suppliers.length ?
+      '<table><thead><tr><th>שם</th><th>תחום</th><th>טלפון</th><th>הסכם / הערות מחיר</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>' :
+      '<div class="empty">עוד לא נוספו ספקים</div>';
+
+    var catOpts = SUPPLIER_CATS.map(function(c){return '<option value="'+c+'">'+c+'</option>';}).join('');
+
+    return ''+
+    '<div class="topline"><div><h1 class="page-title">ספקים וחוזים</h1><div class="page-sub">כל אנשי המקצוע במקום אחד — לחיצה אחת מתוך תקלה</div></div></div>'+
+    '<div class="card" style="margin-bottom:18px;">'+table+'</div>'+
+    '<div class="card">'+
+      '<h2 class="section-title">הוספת ספק</h2>'+
+      '<div class="grid cols-2" style="margin-bottom:12px;">'+
+        '<label class="field">שם<input type="text" id="sup-name"></label>'+
+        '<label class="field">תחום<select id="sup-cat">'+catOpts+'</select></label>'+
+        '<label class="field">טלפון<input type="tel" id="sup-phone" dir="ltr"></label>'+
+        '<label class="field">הסכם מחיר / הערות<input type="text" id="sup-terms"></label>'+
+      '</div>'+
+      '<button class="btn" id="sup-add">הוסף ספק</button>'+
+    '</div>';
+  }
+
+  // ================= ORDER LISTS (shopping lists per supplier) =================
+  function renderOrders(){
+    var lists = state.orderLists;
+    var branchOpts = state.branches.map(function(b){return '<option value="'+b.id+'">'+esc(b.name)+'</option>';}).join('');
+    var supplierDatalist = '<datalist id="supplier-datalist">'+state.suppliers.map(function(s){return '<option value="'+esc(s.name)+'">';}).join('')+'</datalist>';
+
+    if(!currentOrderId || !lists.find(function(l){return l.id===currentOrderId;})){
+      currentOrderId = lists.length ? lists[lists.length-1].id : null;
+    }
+
+    var selectorRow = '';
+    var listPanel = '';
+
+    if(lists.length){
+      var selectorOpts = lists.map(function(l){
+        return '<option value="'+l.id+'" '+(l.id===currentOrderId?'selected':'')+'>'+esc(branchName(l.branchId))+' — '+esc(l.supplier)+' ('+l.createdDate+')</option>';
+      }).join('');
+      selectorRow = '<div class="branch-select-row"><label class="muted" style="font-weight:700; font-size:13px;">רשימה פעילה:</label>'+
+        '<select id="order-select" style="width:300px;">'+selectorOpts+'</select></div>';
+    }
+
+    if(currentOrderId){
+      var list = lists.find(function(l){return l.id===currentOrderId;});
+      var rows = list.items.map(function(it){
+        return '<tr>'+
+          '<td style="font-weight:600;">'+esc(it.name)+'</td>'+
+          '<td><input type="number" min="0" value="'+it.qty+'" data-order-item-qty="'+it.id+'" style="width:70px;"></td>'+
+          '<td><input type="text" value="'+esc(it.unit||'')+'" data-order-item-unit="'+it.id+'" style="width:90px;" placeholder="יחידה"></td>'+
+          '<td><input type="text" value="'+esc(it.note||'')+'" data-order-item-note="'+it.id+'" placeholder="הערה"></td>'+
+          '<td><button class="icon-btn" title="מחק" data-order-item-del="'+it.id+'">✕</button></td>'+
+        '</tr>';
+      }).join('') || '<tr><td colspan="5"><div class="empty">עוד לא נוספו מוצרים לרשימה הזו</div></td></tr>';
+
+      listPanel = '<div class="card">'+
+        '<div class="flexrow" style="margin-bottom:14px; flex-wrap:wrap; gap:10px;">'+
+          '<h2 class="section-title" style="margin:0;">'+esc(branchName(list.branchId))+' — רשימה עבור '+esc(list.supplier)+'</h2>'+
+          '<div style="display:flex; gap:8px;">'+
+            '<button class="btn small" id="order-export-btn">ייצוא לאקסל לשליחה</button>'+
+            '<button class="btn small danger" id="order-delete-btn">מחק רשימה</button>'+
+          '</div>'+
+        '</div>'+
+        '<div style="overflow-x:auto;"><table><thead><tr><th>מוצר</th><th>כמות</th><th>יחידה</th><th>הערה</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+        '<div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">'+
+          '<input type="text" placeholder="מוצר חדש..." id="new-order-item-name" style="flex:1; min-width:140px;">'+
+          '<input type="number" placeholder="כמות" min="1" value="1" id="new-order-item-qty" style="width:90px;">'+
+          '<input type="text" placeholder="יחידה (אריזה / ק״ג...)" id="new-order-item-unit" style="width:150px;">'+
+          '<button class="btn small" id="add-order-item-btn">הוסף מוצר</button>'+
+        '</div>'+
+      '</div>';
+    } else {
+      listPanel = '<div class="empty">עדיין אין רשימות קניות. צרו רשימה חדשה למטה כדי להתחיל.</div>';
+    }
+
+    return ''+
+    '<div class="topline"><div><h1 class="page-title">רשימות קניות לספקים</h1><div class="page-sub">בונים רשימה לפי סניף וספק, ומורידים לאקסל מוכן לשליחה</div></div></div>'+
+    selectorRow+
+    listPanel+
+    '<div class="card" style="margin-top:16px;">'+
+      '<h2 class="section-title">רשימה חדשה</h2>'+
+      '<div class="grid cols-2" style="margin-bottom:12px;">'+
+        '<label class="field">סניף<select id="new-order-branch">'+branchOpts+'</select></label>'+
+        '<label class="field">שם הספק<input type="text" id="new-order-supplier" list="supplier-datalist" placeholder="למשל: ספק חומרי ניקיון"></label>'+
+      '</div>'+
+      supplierDatalist+
+      '<button class="btn" id="create-order-btn">צור רשימה</button>'+
+    '</div>';
+  }
+
+  function exportOrderExcel(list){
+    if(typeof XLSX === 'undefined'){
+      showToast('לא הצלחתי לטעון את ספריית האקסל — בדוק חיבור לאינטרנט ונסה שוב');
+      return;
+    }
+    try{
+      var rows = list.items.map(function(it){
+        return {'מוצר':it.name, 'כמות':it.qty, 'יחידה':it.unit||'', 'הערה':it.note||''};
+      });
+      var wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'רשימת קניות');
+      var safe = function(s){ return String(s).replace(/[\\\/:*?"<>|]+/g, '-'); };
+      var fname = 'רשימת-קניות-'+safe(list.supplier)+'-'+safe(branchName(list.branchId))+'.xlsx';
+      XLSX.writeFile(wb, fname);
+      showToast('הקובץ הורד — מוכן לשליחה לספק');
+    }catch(e){
+      console.error(e);
+      showToast('הייצוא נכשל');
+    }
+  }
+
+  // ================= LICENSES =================
+  function renderLicenses(){
+    var branchOpts = '<option value="all">כל הסניפים</option>' + state.branches.map(function(b){return '<option value="'+b.id+'" '+(branchFilter===b.id?'selected':'')+'>'+esc(b.name)+'</option>';}).join('');
+    var list = state.licenses.filter(function(l){ return branchFilter==='all' || l.branchId===branchFilter; });
+    list = list.slice().sort(function(a,b){
+      var da=daysUntil(a.expiry), db=daysUntil(b.expiry);
+      if(da===null) return 1; if(db===null) return -1;
+      return da-db;
+    });
+    var rows = list.map(function(l){
+      var d = daysUntil(l.expiry);
+      var tone='grey', label='לא הוגדר תאריך';
+      if(d!==null){
+        if(d<0){ tone='red'; label='פג תוקף לפני '+Math.abs(d)+' ימים'; }
+        else if(d<=30){ tone='amber'; label='נותרו '+d+' ימים'; }
+        else{ tone='green'; label='נותרו '+d+' ימים'; }
+      }
+      return '<tr><td>'+esc(branchName(l.branchId))+'</td><td>'+esc(l.type)+'</td>'+
+        '<td><input type="date" value="'+(l.expiry||'')+'" data-license-date="'+l.id+'"></td>'+
+        '<td><span class="pill '+tone+'">'+label+'</span></td>'+
+        '<td><button class="icon-btn" data-license-del="'+l.id+'">✕</button></td></tr>';
+    }).join('') || '<tr><td colspan="5"><div class="empty">אין רישיונות בסינון הנוכחי</div></td></tr>';
+
+    var branchOptsAdd = state.branches.map(function(b){return '<option value="'+b.id+'">'+esc(b.name)+'</option>';}).join('');
+
+    return ''+
+    '<div class="topline"><div><h1 class="page-title">יומן רישוי וביטוחים</h1><div class="page-sub">התראה 30 יום לפני פקיעת תוקף</div></div></div>'+
+    '<div class="branch-select-row"><label class="muted" style="font-weight:700; font-size:13px;">סינון לפי סניף:</label>'+
+      '<select id="license-branch-filter" style="width:200px;">'+branchOpts+'</select></div>'+
+    '<div class="card" style="margin-bottom:18px;"><table><thead><tr><th>סניף</th><th>סוג</th><th>תוקף</th><th>סטטוס</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+    '<div class="card">'+
+      '<h2 class="section-title">הוספת רישיון / ביטוח</h2>'+
+      '<div class="grid cols-3" style="margin-bottom:12px;">'+
+        '<label class="field">סניף<select id="lic-branch">'+branchOptsAdd+'</select></label>'+
+        '<label class="field">סוג<input type="text" id="lic-type" placeholder="למשל: אישור תברואה"></label>'+
+        '<label class="field">תוקף<input type="date" id="lic-date"></label>'+
+      '</div>'+
+      '<button class="btn" id="lic-add">הוסף</button>'+
+    '</div>';
+  }
+
+  // ================= FINANCIALS =================
+  function renderFinancials(){
+    var rows = '', maxAbs = 1;
+    var computed = state.branches.map(function(b){
+      var f = state.financials[b.id];
+      var expenses = (f.rent||0)+(f.salaries||0)+(f.bills||0)+(f.purchasing||0);
+      var profit = (f.revenue||0) - expenses;
+      maxAbs = Math.max(maxAbs, Math.abs(profit));
+      return {b:b, f:f, expenses:expenses, profit:profit};
+    });
+    computed.sort(function(a,b){ return b.profit - a.profit; });
+
+    var barsHtml = computed.map(function(c){
+      var pct = Math.round(Math.abs(c.profit)/maxAbs*100);
+      return '<div class="barrow"><div class="lbl">'+esc(c.b.name)+'</div>'+
+        '<div class="track"><div class="fill '+(c.profit<0?'neg':'')+'" style="width:'+pct+'%;"></div></div>'+
+        '<div class="val">'+fmtMoney(c.profit)+'</div></div>';
+    }).join('');
+
+    var tableRows = state.branches.map(function(b){
+      var f = state.financials[b.id];
+      var expenses = (f.rent||0)+(f.salaries||0)+(f.bills||0)+(f.purchasing||0);
+      var profit = (f.revenue||0) - expenses;
+      return '<tr>'+
+        '<td style="font-weight:700;">'+esc(b.name)+'</td>'+
+        '<td><input type="number" min="0" value="'+f.revenue+'" data-fin="'+b.id+'|revenue" style="width:100px;"></td>'+
+        '<td><input type="number" min="0" value="'+f.rent+'" data-fin="'+b.id+'|rent" style="width:90px;"></td>'+
+        '<td><input type="number" min="0" value="'+f.salaries+'" data-fin="'+b.id+'|salaries" style="width:90px;"></td>'+
+        '<td><input type="number" min="0" value="'+f.bills+'" data-fin="'+b.id+'|bills" style="width:90px;"></td>'+
+        '<td><input type="number" min="0" value="'+f.purchasing+'" data-fin="'+b.id+'|purchasing" style="width:90px;"></td>'+
+        '<td class="num" style="color:'+(profit>=0?'var(--primary-dark)':'var(--red)')+';">'+fmtMoney(profit)+'</td>'+
+      '</tr>';
+    }).join('');
+    var totalProfit = computed.reduce(function(s,c){return s+c.profit;},0);
+
+    return ''+
+    '<div class="topline"><div><h1 class="page-title">רווחיות לפי סניף</h1><div class="page-sub">הכנסות פחות הוצאות קבועות = שורה תחתונה</div></div></div>'+
+    '<div class="card" style="margin-bottom:18px;">'+
+      '<h2 class="section-title">השוואת רווח נטו חודשי</h2>'+
+      barsHtml+
+    '</div>'+
+    '<div class="card">'+
+      '<h2 class="section-title">נתונים חודשיים לעריכה (₪)</h2>'+
+      '<div style="overflow-x:auto;"><table><thead><tr><th>סניף</th><th>שכר לימוד</th><th>שכירות</th><th>משכורות</th><th>חשבונות</th><th>רכש</th><th>רווח נקי</th></tr></thead>'+
+      '<tbody>'+tableRows+'</tbody>'+
+      '<tfoot><tr><td colspan="6" style="text-align:left; font-weight:800;">סה״כ רשת</td><td class="num" style="color:'+(totalProfit>=0?'var(--primary-dark)':'var(--red)')+';">'+fmtMoney(totalProfit)+'</td></tr></tfoot>'+
+      '</table></div>'+
+    '</div>';
+  }
+
+  // ---------- Supabase (shared cloud sync for tickets) ----------
+  var SUPABASE_URL = 'https://acwkrwmzitnxjzlatbdb.supabase.co';
+  var SUPABASE_ANON_KEY = 'sb_publishable_yqAd7kM0J_KSK7UMqfIszA_BkOSytQP';
+  var sb = null;
+  var remoteReady = false;
+  var lastSyncOK = null;
+  try{
+    if(typeof supabase !== 'undefined' && supabase.createClient){
+      sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      remoteReady = true;
+    }
+  }catch(e){ console.error('Supabase init failed', e); }
+
+  function uploadAttachment(file){
+    if(!sb || !file) return Promise.resolve('');
+    var extMatch = file.name.match(/\.[a-zA-Z0-9]+$/);
+    var ext = extMatch ? extMatch[0] : '';
+    var path = 'tickets/' + Date.now() + '-' + Math.random().toString(36).slice(2,8) + ext;
+    return sb.storage.from('ticket-attachments').upload(path, file).then(function(res){
+      if(res.error) throw res.error;
+      var pub = sb.storage.from('ticket-attachments').getPublicUrl(path);
+      return (pub && pub.data && pub.data.publicUrl) || '';
+    }).catch(function(e){ console.error('upload failed', e); return ''; });
+  }
+  function renderAttachmentPreview(url){
+    if(!url) return '';
+    var isImage = /\.(png|jpe?g|gif|webp)(\?|$)/i.test(url);
+    if(isImage){
+      return '<div style="margin:8px 0;"><a href="'+esc(url)+'" target="_blank" rel="noopener"><img src="'+esc(url)+'" style="max-width:220px; max-height:160px; border-radius:8px; border:1px solid var(--border); display:block;"></a></div>';
+    }
+    return '<div style="margin:8px 0;"><a href="'+esc(url)+'" target="_blank" rel="noopener" style="font-size:13px; font-weight:700; color:var(--primary-dark);">📎 צפייה בקובץ מצורף</a></div>';
+  }
+
+  function findBranchIdByName(name){
+    var b = state.branches.find(function(x){ return x.name===name; });
+    return b ? b.id : null;
+  }
+  function ticketBranchDisplay(t){
+    return t.branchId ? branchName(t.branchId) : (t.branchLabel || '—');
+  }
+  function mapRemoteTicket(row){
+    return {
+      id: row.id,
+      branchId: findBranchIdByName(row.branch_name),
+      branchLabel: row.branch_name,
+      type: row.type,
+      text: row.description,
+      status: row.status,
+      date: (row.created_at || '').slice(0,10),
+      reporterEmail: row.reporter_email || '',
+      attachmentUrl: row.attachment_url || ''
+    };
+  }
+  function syncTicketsFromRemote(){
+    if(!sb) return Promise.resolve(false);
+    return sb.from('tickets').select('*').order('created_at', {ascending:false}).then(function(res){
+      if(res.error) throw res.error;
+      var rows = res.data || [];
+      if(rows.length===0 && state.tickets.length>0){
+        // One-time migration: push existing local-only tickets up to the cloud
+        var chain = Promise.resolve();
+        state.tickets.forEach(function(t){
+          chain = chain.then(function(){
+            return sb.from('tickets').insert([{
+              branch_name: ticketBranchDisplay(t),
+              type: t.type,
+              status: t.status,
+              description: t.text,
+              reporter_email: t.reporterEmail || null
+            }]);
+          });
+        });
+        return chain.then(function(){
+          return sb.from('tickets').select('*').order('created_at', {ascending:false});
+        }).then(function(res2){
+          state.tickets = (res2.data || []).map(mapRemoteTicket);
+          lastSyncOK = true;
+          return true;
+        });
+      }
+      state.tickets = rows.map(mapRemoteTicket);
+      lastSyncOK = true;
+      return true;
+    }).catch(function(e){
+      console.error('sync tickets failed', e);
+      lastSyncOK = false;
+      return false;
+    });
+  }
+  function insertRemoteTicket(branchLabel, type, text, reporterEmail, attachmentUrl){
+    if(!sb) return Promise.resolve(null);
+    return sb.from('tickets').insert([{
+      branch_name: branchLabel, type: type, status: 'waiting', description: text, reporter_email: reporterEmail || null, attachment_url: attachmentUrl || null
+    }]).select().then(function(res){
+      if(res.error) throw res.error;
+      return (res.data && res.data[0]) || null;
+    }).catch(function(e){ console.error('insert ticket failed', e); return null; });
+  }
+  function updateRemoteTicketStatus(id, status){
+    if(!sb) return Promise.resolve(false);
+    return sb.from('tickets').update({status:status, updated_at:new Date().toISOString()}).eq('id', id).then(function(res){
+      if(res.error) throw res.error;
+      return true;
+    }).catch(function(e){ console.error('update ticket failed', e); return false; });
+  }
+  function deleteRemoteTicket(id){
+    if(!sb) return Promise.resolve(false);
+    return sb.from('tickets').delete().eq('id', id).then(function(res){
+      if(res.error) throw res.error;
+      return true;
+    }).catch(function(e){ console.error('delete ticket failed', e); return false; });
+  }
+
+  function fetchTicketById(id){
+    if(!sb) return Promise.resolve(null);
+    return sb.from('tickets').select('*').eq('id', id).maybeSingle().then(function(res){
+      if(res.error) throw res.error;
+      return res.data || null;
+    }).catch(function(e){ console.error('fetch ticket failed', e); return null; });
+  }
+  function fetchMessages(ticketId){
+    if(!sb) return Promise.resolve([]);
+    return sb.from('ticket_messages').select('*').eq('ticket_id', ticketId).order('created_at', {ascending:true}).then(function(res){
+      if(res.error) throw res.error;
+      return res.data || [];
+    }).catch(function(e){ console.error('fetch messages failed', e); return []; });
+  }
+  function insertMessage(ticketId, sender, text){
+    if(!sb) return Promise.resolve(false);
+    return sb.from('ticket_messages').insert([{ticket_id:ticketId, sender:sender, message:text}]).then(function(res){
+      if(res.error) throw res.error;
+      return true;
+    }).catch(function(e){ console.error('insert message failed', e); return false; });
+  }
+  var expandedTicketId = null;
+  var ticketMessagesCache = {};
+  var reportLinkGenerated = '';
+  var employeeMessageText = '';
+  var employeeEmailDraft = '';
+
+  function fetchSettings(){
+    if(!sb) return Promise.resolve(null);
+    return sb.from('network_settings').select('*').eq('id','main').maybeSingle().then(function(res){
+      if(res.error) throw res.error;
+      return res.data || null;
+    }).catch(function(e){ console.error('fetch settings failed', e); return null; });
+  }
+  function pushSettingsToRemote(){
+    if(!sb) return Promise.resolve(false);
+    var payload = {
+      id: 'main',
+      email: (state.settings && state.settings.email) || '',
+      branches: state.branches.map(function(b){ return {id:b.id, name:b.name}; }),
+      ticket_types: state.customTicketTypes || [],
+      updated_at: new Date().toISOString()
+    };
+    return sb.from('network_settings').upsert([payload]).then(function(res){
+      if(res.error) throw res.error;
+      return true;
+    }).catch(function(e){ console.error('push settings failed', e); return false; });
+  }
+
+  // ---------- Remote report link (no server — email-based) ----------
+  function encodeConfig(obj){
+    return btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
+  }
+  function decodeReportConfig(hash){
+    try{
+      var raw = hash.slice('#report='.length);
+      var b64 = decodeURIComponent(raw);
+      var json = decodeURIComponent(escape(atob(b64)));
+      return JSON.parse(json);
+    }catch(e){ return null; }
+  }
+  function buildReportLink(){
+    var base = window.location.href.split('#')[0];
+    return base + '#report';
+  }
+  function fetchTicketsByEmail(email){
+    if(!sb || !email) return Promise.resolve([]);
+    return sb.from('tickets').select('*').eq('reporter_email', email).order('created_at', {ascending:false}).then(function(res){
+      if(res.error) throw res.error;
+      return res.data || [];
+    }).catch(function(e){ console.error('fetch tickets by email failed', e); return []; });
+  }
+
+  function renderReportPage(cfg){
+    document.title = 'טופס פנייה — מוקד הרשת';
+    var branches = (cfg && cfg.branches) || [];
+    var branchOpts = branches.map(function(b){return '<option value="'+esc(b.name)+'">'+esc(b.name)+'</option>';}).join('') || '<option value="">לא הוגדרו סניפים</option>';
+    var typeOpts = Object.keys(TICKET_TYPES).map(function(k){return '<option value="'+k+'">'+TICKET_TYPES[k].label+'</option>';}).join('') +
+      (cfg && cfg.ticketTypes ? cfg.ticketTypes.map(function(ct){return '<option value="'+esc(ct.key)+'">'+esc(ct.label)+'</option>';}).join('') : '');
+    var hasEmail = !!(cfg && cfg.email);
+    document.body.innerHTML =
+      '<div style="min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;">'+
+        '<div style="max-width:480px; width:100%; display:flex; flex-direction:column; gap:16px;">'+
+        '<div class="card">'+
+          '<h1 class="page-title" style="margin-bottom:4px; font-size:24px;">טופס פנייה לצוות הרשת</h1>'+
+          '<p class="muted" style="margin-bottom:18px; font-size:13.5px;">דווחו כאן על תקלה, בקשת רכש או הערה — הפנייה תיכנס ישירות למערכת הניהול.</p>'+
+          '<div style="display:flex; flex-direction:column; gap:12px;">'+
+            '<label class="field">סניף<select id="rp-branch">'+branchOpts+'</select></label>'+
+            '<label class="field">סוג הפנייה<select id="rp-type">'+typeOpts+'</select></label>'+
+            '<label class="field">תיאור<textarea id="rp-text" rows="4" placeholder="מה קרה? תארו בקצרה"></textarea></label>'+
+            '<label class="field">צירוף תמונה או מסמך (לא חובה)<input type="file" id="rp-file" accept="image/*,.pdf,.doc,.docx"></label>'+
+            '<label class="field">האימייל שלכם (מומלץ למלא — כדי שתוכלו למצוא את הפנייה ולהגיב עליה בהמשך)<input type="text" id="rp-email" placeholder="you@example.com" dir="ltr"></label>'+
+          '</div>'+
+          '<button class="btn" id="rp-submit" style="width:100%; margin-top:16px;">שליחת הפנייה</button>'+
+          '<div id="rp-result"></div>'+
+          (!hasEmail ? '<p style="font-size:12.5px; margin-top:10px; color:var(--red); font-weight:700;">שימו לב: לא הוגדרה כתובת מייל יעד בקישור הזה. הפנייה עדיין תיכנס למערכת, אך לא יישלח מייל גיבוי.</p>' : '')+
+        '</div>'+
+        '<div class="card">'+
+          '<h2 class="section-title" style="font-size:16px; margin-bottom:6px;">כבר שלחתם פנייה? מצאו אותה כאן והגיבו</h2>'+
+          '<p class="muted" style="font-size:12.5px; margin-bottom:10px;">הזינו את המייל שמילאתם בעת השליחה, כדי לראות את הפניות שלכם ולהמשיך את השיחה.</p>'+
+          '<div style="display:flex; gap:8px;">'+
+            '<input type="text" id="lookup-email" placeholder="your@email.com" dir="ltr" style="flex:1;">'+
+            '<button class="btn secondary small" id="lookup-btn">חפש</button>'+
+          '</div>'+
+          '<div id="lookup-results" style="margin-top:12px;"></div>'+
+        '</div>'+
+        '</div>'+
+      '</div>';
+    document.getElementById('rp-submit').addEventListener('click', function(){
+      var branch = document.getElementById('rp-branch').value;
+      var type = document.getElementById('rp-type').value;
+      var text = document.getElementById('rp-text').value.trim();
+      var reporterEmail = document.getElementById('rp-email').value.trim();
+      var file = document.getElementById('rp-file').files[0];
+      if(!text){ alert('נא לתאר את הפנייה לפני השליחה'); return; }
+      var email = (cfg && cfg.email) || '';
+      var customMatch = (cfg && cfg.ticketTypes || []).find(function(ct){return ct.key===type;});
+      var typeLabel = TICKET_TYPES[type] ? TICKET_TYPES[type].label : (customMatch ? customMatch.label : type);
+      var subject = 'פנייה חדשה: '+typeLabel+' — '+branch;
+      var body = 'סניף: '+branch+'\nסוג פנייה: '+typeLabel+'\nתאריך: '+new Date().toISOString().slice(0,10)+'\n\nתיאור:\n'+text;
+      var mailto = 'mailto:'+encodeURIComponent(email)+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
+      var btn = document.getElementById('rp-submit');
+      var resultBox = document.getElementById('rp-result');
+      btn.disabled = true;
+      btn.textContent = 'שולח…';
+      uploadAttachment(file).then(function(attachmentUrl){
+        insertRemoteTicket(branch, type, text, reporterEmail, attachmentUrl).then(function(row){
+          var ok = !!row;
+          var followUpHtml = '';
+          if(ok){
+            var threadLink = window.location.href.split('#')[0] + '#ticket=' + encodeURIComponent(row.id);
+            followUpHtml = '<div style="margin-top:12px; padding:10px; background:var(--surface-2); border-radius:8px;">'+
+              '<div class="muted" style="font-size:12px; margin-bottom:6px;">שמרו את הקישור הזה כדי לראות תגובות ולהוסיף עדכונים על הפנייה:</div>'+
+              '<input type="text" readonly value="'+esc(threadLink)+'" style="width:100%;" dir="ltr" onclick="this.select()">'+
+            '</div>';
+          }
+          resultBox.innerHTML = '<p style="margin-top:12px; font-weight:700; color:'+(ok?'var(--primary-dark)':'var(--red)')+';">'+
+            (ok ? 'הפנייה נקלטה במערכת בהצלחה! תודה.' : 'לא הצלחנו לשמור את הפנייה במערכת (ייתכן שההגדרה בענן עדיין לא הושלמה במלואה) — אבל נפתח לכם מייל לשליחה ידנית כגיבוי.')+
+          '</p>'+followUpHtml;
+          if(email){ window.location.href = mailto; }
+          btn.disabled = false;
+          btn.textContent = 'שליחת הפנייה';
+        });
+      });
+    });
+
+    document.getElementById('lookup-btn').addEventListener('click', function(){
+      var email = document.getElementById('lookup-email').value.trim();
+      var resultsBox = document.getElementById('lookup-results');
+      if(!email){ resultsBox.innerHTML = '<p class="muted" style="font-size:13px;">נא להזין כתובת מייל.</p>'; return; }
+      resultsBox.innerHTML = '<p class="muted" style="font-size:13px;">מחפש…</p>';
+      fetchTicketsByEmail(email).then(function(tickets){
+        if(!tickets.length){
+          resultsBox.innerHTML = '<p class="muted" style="font-size:13px;">לא נמצאו פניות עם המייל הזה. ודאו שהזנתם את אותה כתובת שמילאתם בעת השליחה.</p>';
+          return;
+        }
+        resultsBox.innerHTML = tickets.map(function(t){
+          var statusLabel = TICKET_STATUS_LABEL[t.status] || t.status;
+          var customMatch = (cfg && cfg.ticketTypes || []).find(function(ct){return ct.key===t.type;});
+          var typeLabel = TICKET_TYPES[t.type] ? TICKET_TYPES[t.type].label : (customMatch ? customMatch.label : t.type);
+          return '<div style="border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-bottom:8px;">'+
+            '<div style="font-weight:700; font-size:13.5px;">'+esc(t.branch_name)+' · '+esc(typeLabel)+'</div>'+
+            '<div class="muted" style="font-size:12px; margin:4px 0;">סטטוס: '+esc(statusLabel)+' · '+esc((t.created_at||'').slice(0,10))+'</div>'+
+            '<button class="btn secondary small" data-open-thread="'+t.id+'">פתיחת השיחה</button>'+
+          '</div>';
+        }).join('');
+        resultsBox.querySelectorAll('[data-open-thread]').forEach(function(el){
+          el.addEventListener('click', function(){
+            var id = el.getAttribute('data-open-thread');
+            window.location.hash = 'ticket=' + encodeURIComponent(id);
+            window.location.reload();
+          });
+        });
+      });
+    });
+  }
+
+  function renderTicketThreadPage(ticketId){
+    document.title = 'מעקב פנייה — מוקד הרשת';
+    document.body.innerHTML = '<div style="min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;">'+
+      '<div class="card" style="max-width:480px; width:100%;" id="thread-card"><p class="muted">טוען…</p></div></div>';
+    var customTypesCache = [];
+
+    function draw(ticket, msgs){
+      var card = document.getElementById('thread-card');
+      if(!ticket){
+        card.innerHTML = '<p style="font-weight:700; color:var(--red);">לא נמצאה פנייה כזו. ייתכן שהקישור שגוי או שהפנייה נמחקה.</p>';
+        return;
+      }
+      var customMatch = customTypesCache.find(function(ct){return ct.key===ticket.type;});
+      var typeLabel = TICKET_TYPES[ticket.type] ? TICKET_TYPES[ticket.type].label : (customMatch ? customMatch.label : ticket.type);
+      var statusLabel = TICKET_STATUS_LABEL[ticket.status] || ticket.status;
+      var msgRows = msgs.map(function(m){
+        var isManager = m.sender==='manager';
+        return '<div style="margin-bottom:8px; padding:8px 10px; border-radius:8px; background:'+(isManager?'var(--primary-tint)':'var(--surface-2)')+';">'+
+          '<div style="font-size:11.5px; font-weight:700; color:var(--ink-soft); margin-bottom:2px;">'+(isManager?'מנהל הרשת':'אתם')+'</div>'+
+          '<div>'+esc(m.message)+'</div>'+
+        '</div>';
+      }).join('') || '<div class="muted" style="font-size:13px;">אין תגובות עדיין</div>';
+      var closed = ticket.status === 'done';
+      var actionHtml = closed ?
+        '<div class="muted" style="font-size:12.5px; margin-top:10px; padding:8px 10px; background:var(--surface-2); border-radius:8px;">הפנייה סומנה כטופלה. השיחה נסגרה.</div>'
+        :
+        '<div style="display:flex; gap:8px; margin-top:10px;">'+
+          '<input type="text" id="thread-reply-input" placeholder="כתבו תגובה...">'+
+          '<button class="btn small" id="thread-reply-send">שלח</button>'+
+        '</div>'+
+        '<button class="btn secondary small" id="thread-close-btn" style="margin-top:10px; width:100%;">סמן כטופל וסגור פנייה</button>';
+      card.innerHTML =
+        '<h1 class="page-title" style="font-size:22px; margin-bottom:4px;">מעקב אחר הפנייה שלכם</h1>'+
+        '<p class="muted" style="margin-bottom:14px; font-size:13px;">'+esc(ticket.branch_name)+' · '+esc(typeLabel)+'</p>'+
+        '<div style="margin-bottom:14px;"><span class="pill '+(ticket.status==='done'?'green':'amber')+'">סטטוס: '+esc(statusLabel)+'</span></div>'+
+        '<div style="padding:10px 12px; background:var(--surface-2); border-radius:10px; margin-bottom:14px;">'+esc(ticket.description)+'</div>'+
+        renderAttachmentPreview(ticket.attachment_url)+
+        '<h2 class="section-title" style="font-size:15px;">התכתבות</h2>'+
+        '<div id="thread-msgs">'+msgRows+'</div>'+
+        actionHtml;
+      if(!closed){
+        document.getElementById('thread-reply-send').addEventListener('click', function(){
+          var inp = document.getElementById('thread-reply-input');
+          var text = inp.value.trim();
+          if(!text) return;
+          insertMessage(ticketId, 'staff', text).then(function(ok){
+            if(ok){ inp.value=''; refresh(); }
+            else alert('השליחה נכשלה, נסו שוב');
+          });
+        });
+        document.getElementById('thread-close-btn').addEventListener('click', function(){
+          if(!confirm('לסגור את הפנייה? לא תוכלו להוסיף תגובות נוספות אחרי זה.')) return;
+          updateRemoteTicketStatus(ticketId, 'done').then(function(){ refresh(); });
+        });
+      }
+    }
+    function refresh(){
+      Promise.all([fetchTicketById(ticketId), fetchMessages(ticketId)]).then(function(results){
+        draw(results[0], results[1]);
+      });
+    }
+    fetchSettings().then(function(row){
+      customTypesCache = (row && row.ticket_types) || [];
+      refresh();
+    });
+    setInterval(refresh, 8000);
+  }
+
+  // ---------- Modals ----------
+  function openNewTicketModal(){
+    var branchOpts = state.branches.map(function(b){return '<option value="'+b.id+'">'+esc(b.name)+'</option>';}).join('');
+    var allTypes = getAllTicketTypes();
+    var typeOpts = Object.keys(allTypes).map(function(k){return '<option value="'+k+'">'+esc(allTypes[k].label)+'</option>';}).join('');
+    var root = document.getElementById('modal-root');
+    root.innerHTML = '<div class="modal-bg" id="modal-bg"><div class="modal">'+
+      '<button class="close-x" id="modal-close">×</button>'+
+      '<h3>פנייה חדשה</h3>'+
+      '<div class="fields">'+
+        '<label class="field">סניף<select id="nt-branch">'+branchOpts+'</select></label>'+
+        '<label class="field">סוג הפנייה<select id="nt-type">'+typeOpts+'</select></label>'+
+        '<label class="field">תיאור<textarea id="nt-text" rows="3" placeholder="מה קרה?"></textarea></label>'+
+        '<label class="field">צירוף תמונה או מסמך (לא חובה)<input type="file" id="nt-file" accept="image/*,.pdf,.doc,.docx"></label>'+
+      '</div>'+
+      '<button class="btn" id="nt-submit" style="width:100%;">שליחה</button>'+
+    '</div></div>';
+    document.getElementById('modal-bg').addEventListener('click', function(e){ if(e.target.id==='modal-bg') closeModal(); });
+    document.getElementById('modal-close').addEventListener('click', closeModal);
+    document.getElementById('nt-submit').addEventListener('click', function(){
+      var branchId = document.getElementById('nt-branch').value;
+      var type = document.getElementById('nt-type').value;
+      var text = document.getElementById('nt-text').value.trim();
+      var file = document.getElementById('nt-file').files[0];
+      if(!text){ showToast('נא לתאר את הפנייה'); return; }
+      var branchLabel = branchName(branchId);
+      closeModal();
+      currentTab='tickets'; branchFilter='all';
+      showToast('שולח פנייה...');
+      uploadAttachment(file).then(function(url){
+        insertRemoteTicket(branchLabel, type, text, '', url).then(function(row){
+          if(row){
+            state.tickets.unshift(mapRemoteTicket(row));
+            showToast('הפנייה נשלחה ונכנסה למערכת');
+          } else {
+            state.tickets.push({id:uid(), branchId:branchId, branchLabel:branchLabel, type:type, text:text, status:'waiting', date: new Date().toISOString().slice(0,10), attachmentUrl:url});
+            showToast('לא הצלחתי להתחבר לענן — הפנייה נשמרה מקומית בלבד');
+          }
+          scheduleSave();
+          render();
+        });
+      });
+    });
+  }
+  function openReceiveModal(cat, itemId, itemName){
+    var today = new Date().toISOString().slice(0,10);
+    var root = document.getElementById('modal-root');
+    root.innerHTML = '<div class="modal-bg" id="modal-bg"><div class="modal">'+
+      '<button class="close-x" id="modal-close">×</button>'+
+      '<h3>קליטת משלוח — '+esc(itemName)+'</h3>'+
+      '<div class="fields">'+
+        '<label class="field">כמות שהתקבלה<input type="number" min="1" value="1" id="rc-qty"></label>'+
+        '<label class="field">תאריך<input type="date" value="'+today+'" id="rc-date"></label>'+
+        '<label class="field">הערה / ספק (לא חובה)<input type="text" id="rc-note" placeholder="למשל: התקבל מספק חומרי ניקיון"></label>'+
+      '</div>'+
+      '<button class="btn" id="rc-submit" style="width:100%;">הוסף למלאי</button>'+
+    '</div></div>';
+    document.getElementById('modal-bg').addEventListener('click', function(e){ if(e.target.id==='modal-bg') closeModal(); });
+    document.getElementById('modal-close').addEventListener('click', closeModal);
+    document.getElementById('rc-submit').addEventListener('click', function(){
+      var qty = Number(document.getElementById('rc-qty').value)||0;
+      var date = document.getElementById('rc-date').value || today;
+      var note = document.getElementById('rc-note').value.trim();
+      if(qty<=0){ showToast('נא להזין כמות תקינה'); return; }
+      var activeId = branchFilter==='all' ? state.branches[0].id : branchFilter;
+      var item = state.inventory[activeId][cat].find(function(i){return i.id===itemId;});
+      if(!item){ closeModal(); return; }
+      item.qty += qty;
+      state.deliveries.push({id:uid(), date:date, branchId:activeId, cat:cat, item:item.name, qty:qty, note:note});
+      scheduleSave();
+      closeModal();
+      render();
+      showToast('המלאי עודכן');
+    });
+  }
+  function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
+
+  // ---------- Event handlers (delegated, re-attached each render) ----------
+  function attachHandlers(){
+    var main = document.getElementById('main');
+
+    // Dashboard: click node
+    main.querySelectorAll('[data-goto-branch]').forEach(function(el){
+      el.addEventListener('click', function(){
+        branchFilter = el.getAttribute('data-goto-branch');
+        currentTab = 'inventory';
+        render();
+      });
+    });
+    main.querySelectorAll('[data-branch-rename]').forEach(function(el){
+      el.addEventListener('change', function(){
+        var b = state.branches.find(function(x){return x.id===el.getAttribute('data-branch-rename');});
+        var newName = el.value.trim();
+        if(!newName){ el.value = b.name; return; }
+        b.name = newName;
+        scheduleSave(); render();
+        pushSettingsToRemote();
+        showToast('שם הסניף עודכן');
+      });
+    });
+
+    // Inventory branch select
+    var invSel = document.getElementById('inv-branch-select');
+    if(invSel) invSel.addEventListener('change', function(){ branchFilter = invSel.value; render(); });
+
+    main.querySelectorAll('[data-inv-inc]').forEach(function(el){
+      el.addEventListener('click', function(){ adjustQty(el.getAttribute('data-inv-inc'), 1); });
+    });
+    main.querySelectorAll('[data-inv-dec]').forEach(function(el){
+      el.addEventListener('click', function(){ adjustQty(el.getAttribute('data-inv-dec'), -1); });
+    });
+    main.querySelectorAll('[data-inv-set]').forEach(function(el){
+      el.addEventListener('change', function(){ setQty(el.getAttribute('data-inv-set'), el.value); });
+    });
+    main.querySelectorAll('[data-inv-min]').forEach(function(el){
+      el.addEventListener('change', function(){ setMin(el.getAttribute('data-inv-min'), el.value); });
+    });
+    main.querySelectorAll('[data-inv-del]').forEach(function(el){
+      el.addEventListener('click', function(){ delItem(el.getAttribute('data-inv-del')); });
+    });
+    main.querySelectorAll('[data-receive]').forEach(function(el){
+      el.addEventListener('click', function(){
+        var parts = el.getAttribute('data-receive').split('|');
+        var cat = parts[0], itemId = parts[1];
+        var activeId = branchFilter==='all' ? state.branches[0].id : branchFilter;
+        var item = state.inventory[activeId][cat].find(function(i){return i.id===itemId;});
+        if(item) openReceiveModal(cat, itemId, item.name);
+      });
+    });
+    main.querySelectorAll('[data-inv-add]').forEach(function(el){
+      el.addEventListener('click', function(){
+        var cat = el.getAttribute('data-inv-add');
+        var nameInp = document.getElementById('new-'+cat+'-name');
+        var minInp = document.getElementById('new-'+cat+'-min');
+        var qtyInp = document.getElementById('new-'+cat+'-qty');
+        var name = nameInp.value.trim();
+        if(!name) return;
+        var activeId = branchFilter==='all' ? state.branches[0].id : branchFilter;
+        var startQty = qtyInp ? (Number(qtyInp.value)||0) : 0;
+        var newItem = {id:uid(), name:name, qty:startQty};
+        if(minInp) newItem.minQty = Number(minInp.value)||0;
+        state.inventory[activeId][cat].push(newItem);
+        if(startQty>0){
+          state.deliveries.push({id:uid(), date:new Date().toISOString().slice(0,10), branchId:activeId, cat:cat, item:name, qty:startQty, note:'הוספת פריט חדש'});
+        }
+        scheduleSave(); render();
+      });
+    });
+
+    var addReminderBtn = document.getElementById('add-reminder-btn');
+    if(addReminderBtn){
+      addReminderBtn.addEventListener('click', function(){
+        var textInp = document.getElementById('new-reminder-text');
+        var dateInp = document.getElementById('new-reminder-date');
+        var urgSel = document.getElementById('new-reminder-urgency');
+        var text = textInp.value.trim();
+        if(!text){ showToast('נא לתאר את המשימה'); return; }
+        var activeId = branchFilter==='all' ? state.branches[0].id : branchFilter;
+        state.reminders.push({id:uid(), branchId:activeId, text:text, dueDate:dateInp.value||'', urgency:urgSel.value, done:false, createdDate:new Date().toISOString().slice(0,10)});
+        scheduleSave(); render();
+        showToast('התזכורת נוספה');
+      });
+    }
+    main.querySelectorAll('[data-reminder-done]').forEach(function(el){
+      el.addEventListener('click', function(){
+        var r = state.reminders.find(function(x){return x.id===el.getAttribute('data-reminder-done');});
+        if(r) r.done = true;
+        scheduleSave(); render();
+        showToast('התזכורת סומנה כטופלה');
+      });
+    });
+    main.querySelectorAll('[data-reminder-del]').forEach(function(el){
+      el.addEventListener('click', function(){
+        state.reminders = state.reminders.filter(function(r){return r.id!==el.getAttribute('data-reminder-del');});
+        scheduleSave(); render();
+      });
+    });
+
+    var notesArea = document.getElementById('branch-notes');
+    if(notesArea){
+      notesArea.addEventListener('input', function(){
+        var activeId = branchFilter==='all' ? state.branches[0].id : branchFilter;
+        var b = state.branches.find(function(x){return x.id===activeId;});
+        b.notes = notesArea.value;
+        scheduleSave();
+      });
+    }
+
+    var trSubmit = document.getElementById('tr-submit');
+    if(trSubmit){
+      trSubmit.addEventListener('click', function(){
+        var from = document.getElementById('tr-from').value;
+        var to = document.getElementById('tr-to').value;
+        var itemVal = document.getElementById('tr-item').value;
+        var qty = Number(document.getElementById('tr-qty').value)||0;
+        if(from===to){ showToast('בחרו שני סניפים שונים'); return; }
+        if(!itemVal || qty<=0){ showToast('בחרו פריט וכמות תקינה'); return; }
+        var parts = itemVal.split('|'); var cat=parts[0], itemId=parts[1];
+        var srcItem = state.inventory[from][cat].find(function(i){return i.id===itemId;});
+        if(!srcItem || srcItem.qty < qty){ showToast('אין מספיק מלאי בסניף המקור'); return; }
+        srcItem.qty -= qty;
+        var destList = state.inventory[to][cat];
+        var destItem = destList.find(function(i){return i.name===srcItem.name;});
+        if(destItem) destItem.qty += qty;
+        else destList.push({id:uid(), name:srcItem.name, qty:qty, minQty: srcItem.minQty});
+        state.transfers.push({id:uid(), date:new Date().toISOString().slice(0,10), from:from, to:to, item:srcItem.name, qty:qty});
+        scheduleSave(); render();
+        showToast('ההעברה בוצעה');
+      });
+    }
+
+    // Wizard
+    main.querySelectorAll('[data-wizard-check]').forEach(function(el){
+      el.addEventListener('change', function(){
+        var parts = el.getAttribute('data-wizard-check').split('|');
+        var bId=parts[0], pId=parts[1], iId=parts[2];
+        var phase = state.wizard[bId].phases.find(function(p){return p.id===pId;});
+        var item = phase.items.find(function(i){return i.id===iId;});
+        item.done = el.checked;
+        scheduleSave(); render();
+      });
+    });
+    main.querySelectorAll('[data-wizard-finish]').forEach(function(el){
+      el.addEventListener('click', function(){
+        var bId = el.getAttribute('data-wizard-finish');
+        delete state.wizard[bId];
+        var b = state.branches.find(function(x){return x.id===bId;});
+        if(b) b.opened = true;
+        scheduleSave(); render();
+        showToast('הסניף סומן כפתוח 🎉');
+      });
+    });
+    var wizardStartExisting = document.getElementById('wizard-start-existing');
+    if(wizardStartExisting){
+      wizardStartExisting.addEventListener('click', function(){
+        var bId = document.getElementById('wizard-target-existing').value;
+        state.wizard[bId] = {phases: wizardPhases()};
+        scheduleSave(); render();
+      });
+    }
+    var wizardCreateNew = document.getElementById('wizard-create-new');
+    if(wizardCreateNew){
+      wizardCreateNew.addEventListener('click', function(){
+        var nameInp = document.getElementById('new-branch-name');
+        var name = nameInp.value.trim();
+        if(!name){ showToast('נא להזין שם לסניף'); return; }
+        var newB = {id:uid(), name:name, address:'', opened:false, notes:''};
+        state.branches.push(newB);
+        state.inventory[newB.id] = defaultInventoryFor();
+        state.financials[newB.id] = {revenue:0, rent:0, salaries:0, bills:0, purchasing:0};
+        state.licenses = state.licenses.concat(defaultLicensesFor(newB.id));
+        state.wizard[newB.id] = {phases: wizardPhases()};
+        scheduleSave(); render();
+        pushSettingsToRemote();
+        showToast('הסניף נוצר — בהצלחה בהקמה!');
+      });
+    }
+
+    var addTypeBtn = document.getElementById('add-type-btn');
+    if(addTypeBtn){
+      addTypeBtn.addEventListener('click', function(){
+        var labelInp = document.getElementById('new-type-label');
+        var toneSel = document.getElementById('new-type-tone');
+        var label = labelInp.value.trim();
+        if(!label){ showToast('נא להזין שם לסוג הפנייה'); return; }
+        var key = 'custom_' + uid();
+        state.customTicketTypes.push({key:key, label:label, tone:toneSel.value});
+        scheduleSave();
+        pushSettingsToRemote();
+        render();
+        showToast('סוג הפנייה נוסף');
+      });
+    }
+    main.querySelectorAll('[data-customtype-del]').forEach(function(el){
+      el.addEventListener('click', function(){
+        var key = el.getAttribute('data-customtype-del');
+        state.customTicketTypes = state.customTicketTypes.filter(function(ct){return ct.key!==key;});
+        scheduleSave();
+        pushSettingsToRemote();
+        render();
+      });
+    });
+
+    // Tickets
+    var openTicketBtn = document.getElementById('open-new-ticket');
+    if(openTicketBtn) openTicketBtn.addEventListener('click', openNewTicketModal);
+    var ticketFilter = document.getElementById('ticket-branch-filter');
+    if(ticketFilter) ticketFilter.addEventListener('change', function(){ branchFilter = ticketFilter.value; render(); });
+    var settingsEmailInp = document.getElementById('settings-email');
+    if(settingsEmailInp){
+      settingsEmailInp.addEventListener('change', function(){
+        if(!state.settings) state.settings = {email:''};
+        state.settings.email = settingsEmailInp.value.trim();
+        scheduleSave();
+        pushSettingsToRemote();
+        showToast('כתובת המייל נשמרה');
+      });
+    }
+    var genLinkBtn = document.getElementById('gen-link-btn');
+    if(genLinkBtn){
+      genLinkBtn.addEventListener('click', function(){
+        if(!state.settings || !state.settings.email){
+          showToast('קודם הזינו כתובת מייל ולחצו מחוץ לשדה כדי לשמור');
+          return;
+        }
+        reportLinkGenerated = buildReportLink();
+        render();
+      });
+    }
+    var copyLinkBtn = document.getElementById('copy-link-btn');
+    if(copyLinkBtn){
+      copyLinkBtn.addEventListener('click', function(){
+        var box = document.getElementById('report-link-box');
+        if(!box.value){ showToast('קודם צרו קישור'); return; }
+        box.select();
+        box.setSelectionRange(0, 99999);
+        var copied = false;
+        try{ copied = document.execCommand('copy'); }catch(e){}
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(box.value).then(function(){ showToast('הקישור הועתק'); }).catch(function(){
+            if(!copied) showToast('סמנו והעתיקו ידנית (Ctrl+C)');
+          });
+        } else if(copied){
+          showToast('הקישור הועתק');
+        } else {
+          showToast('סמנו והעתיקו ידנית (Ctrl+C)');
+        }
+      });
+    }
+    var empEmailInp = document.getElementById('employee-email');
+    if(empEmailInp){
+      empEmailInp.addEventListener('input', function(){ employeeEmailDraft = empEmailInp.value; });
+    }
+    var sendEmployeeLinkBtn = document.getElementById('send-employee-link-btn');
+    if(sendEmployeeLinkBtn){
+      sendEmployeeLinkBtn.addEventListener('click', function(){
+        var empEmail = document.getElementById('employee-email').value.trim();
+        var link = buildReportLink();
+        var subject = 'קישור לדיווח תקלות ופניות';
+        var body = 'שלום,\n\nזהו הקישור הקבוע לדיווח על תקלות ופניות ברשת הגנים.\nאפשר לשמור אותו — הוא לא ישתנה בעתיד.\n\n'+link+'\n\nתודה!';
+        employeeMessageText = (empEmail ? 'אל: '+empEmail+'\n' : '')+'נושא: '+subject+'\n\n'+body;
+        render();
+      });
+    }
+    var copyEmployeeMsgBtn = document.getElementById('copy-employee-message-btn');
+    if(copyEmployeeMsgBtn){
+      copyEmployeeMsgBtn.addEventListener('click', function(){
+        var box = document.getElementById('employee-message-box');
+        box.select();
+        box.setSelectionRange(0, 99999);
+        var copied = false;
+        try{ copied = document.execCommand('copy'); }catch(e){}
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(box.value).then(function(){ showToast('ההודעה הועתקה'); }).catch(function(){
+            if(!copied) showToast('סמנו והעתיקו ידנית (Ctrl+C)');
+          });
+        } else if(copied){
+          showToast('ההודעה הועתקה');
+        } else {
+          showToast('סמנו והעתיקו ידנית (Ctrl+C)');
+        }
+      });
+    }
+    main.querySelectorAll('[data-ticket-status]').forEach(function(el){
+      el.addEventListener('change', function(){
+        var t = state.tickets.find(function(x){return x.id===el.getAttribute('data-ticket-status');});
+        t.status = el.value;
+        render();
+        scheduleSave();
+        updateRemoteTicketStatus(t.id, t.status);
+      });
+    });
+    main.querySelectorAll('[data-ticket-del]').forEach(function(el){
+      el.addEventListener('click', function(){
+        var id = el.getAttribute('data-ticket-del');
+        state.tickets = state.tickets.filter(function(t){return t.id!==id;});
+        render();
+        scheduleSave();
+        deleteRemoteTicket(id);
+      });
+    });
+    main.querySelectorAll('[data-toggle-thread]').forEach(function(el){
+      el.addEventListener('click', function(){
+        var id = el.getAttribute('data-toggle-thread');
+        if(expandedTicketId === id){ expandedTicketId = null; render(); return; }
+        expandedTicketId = id;
+        render();
+        fetchMessages(id).then(function(msgs){
+          ticketMessagesCache[id] = msgs;
+          if(expandedTicketId === id) render();
+        });
+      });
+    });
+    main.querySelectorAll('[data-reply-send]').forEach(function(el){
+      el.addEventListener('click', function(){
+        var id = el.getAttribute('data-reply-send');
+        var input = main.querySelector('[data-reply-input="'+id+'"]');
+        var text = input.value.trim();
+        if(!text) return;
+        insertMessage(id, 'manager', text).then(function(ok){
+          if(!ok){ showToast('שליחת התגובה נכשלה'); return; }
+          fetchMessages(id).then(function(msgs){
+            ticketMessagesCache[id] = msgs;
+            render();
+          });
+        });
+      });
+    });
+
+    // Suppliers
+    var supAdd = document.getElementById('sup-add');
+    if(supAdd){
+      supAdd.addEventListener('click', function(){
+        var name = document.getElementById('sup-name').value.trim();
+        var category = document.getElementById('sup-cat').value;
+        var phone = document.getElementById('sup-phone').value.trim();
+        var terms = document.getElementById('sup-terms').value.trim();
+        if(!name){ showToast('נא להזין שם ספק'); return; }
+        state.suppliers.push({id:uid(), name:name, category:category, phone:phone, terms:terms});
+        scheduleSave(); render();
+      });
+    }
+    main.querySelectorAll('[data-supplier-del]').forEach(function(el){
+      el.addEventListener('click', function(){
+        state.suppliers = state.suppliers.filter(function(s){return s.id!==el.getAttribute('data-supplier-del');});
+        scheduleSave(); render();
+      });
+    });
+
+    // Order lists
+    var orderSelect = document.getElementById('order-select');
+    if(orderSelect) orderSelect.addEventListener('change', function(){ currentOrderId = orderSelect.value; render(); });
+
+    var createOrderBtn = document.getElementById('create-order-btn');
+    if(createOrderBtn){
+      createOrderBtn.addEventListener('click', function(){
+        var branchId = document.getElementById('new-order-branch').value;
+        var supplierInp = document.getElementById('new-order-supplier');
+        var supplier = supplierInp.value.trim();
+        if(!supplier){ showToast('נא להזין שם ספק'); return; }
+        var newList = {id:uid(), branchId:branchId, supplier:supplier, createdDate:new Date().toISOString().slice(0,10), items:[]};
+        state.orderLists.push(newList);
+        currentOrderId = newList.id;
+        scheduleSave(); render();
+        showToast('הרשימה נוצרה');
+      });
+    }
+
+    var addOrderItemBtn = document.getElementById('add-order-item-btn');
+    if(addOrderItemBtn){
+      addOrderItemBtn.addEventListener('click', function(){
+        var nameInp = document.getElementById('new-order-item-name');
+        var qtyInp = document.getElementById('new-order-item-qty');
+        var unitInp = document.getElementById('new-order-item-unit');
+        var name = nameInp.value.trim();
+        if(!name){ showToast('נא להזין שם מוצר'); return; }
+        var list = state.orderLists.find(function(l){return l.id===currentOrderId;});
+        if(!list) return;
+        list.items.push({id:uid(), name:name, qty:Number(qtyInp.value)||1, unit:unitInp.value.trim(), note:''});
+        scheduleSave(); render();
+      });
+    }
+    main.querySelectorAll('[data-order-item-qty]').forEach(function(el){
+      el.addEventListener('change', function(){
+        var list = state.orderLists.find(function(l){return l.id===currentOrderId;});
+        var it = list.items.find(function(i){return i.id===el.getAttribute('data-order-item-qty');});
+        it.qty = Math.max(0, Number(el.value)||0);
+        scheduleSave(); render();
+      });
+    });
+    main.querySelectorAll('[data-order-item-unit]').forEach(function(el){
+      el.addEventListener('change', function(){
+        var list = state.orderLists.find(function(l){return l.id===currentOrderId;});
+        var it = list.items.find(function(i){return i.id===el.getAttribute('data-order-item-unit');});
+        it.unit = el.value.trim();
+        scheduleSave();
+      });
+    });
+    main.querySelectorAll('[data-order-item-note]').forEach(function(el){
+      el.addEventListener('change', function(){
+        var list = state.orderLists.find(function(l){return l.id===currentOrderId;});
+        var it = list.items.find(function(i){return i.id===el.getAttribute('data-order-item-note');});
+        it.note = el.value.trim();
+        scheduleSave();
+      });
+    });
+    main.querySelectorAll('[data-order-item-del]').forEach(function(el){
+      el.addEventListener('click', function(){
+        var list = state.orderLists.find(function(l){return l.id===currentOrderId;});
+        list.items = list.items.filter(function(i){return i.id!==el.getAttribute('data-order-item-del');});
+        scheduleSave(); render();
+      });
+    });
+    var orderExportBtn = document.getElementById('order-export-btn');
+    if(orderExportBtn){
+      orderExportBtn.addEventListener('click', function(){
+        var list = state.orderLists.find(function(l){return l.id===currentOrderId;});
+        if(!list || !list.items.length){ showToast('הרשימה ריקה — הוסיפו מוצרים קודם'); return; }
+        exportOrderExcel(list);
+      });
+    }
+    var orderDeleteBtn = document.getElementById('order-delete-btn');
+    if(orderDeleteBtn){
+      orderDeleteBtn.addEventListener('click', function(){
+        if(!confirm('למחוק את הרשימה הזו לגמרי?')) return;
+        state.orderLists = state.orderLists.filter(function(l){return l.id!==currentOrderId;});
+        currentOrderId = null;
+        scheduleSave(); render();
+      });
+    }
+
+    // Licenses
+    var licFilter = document.getElementById('license-branch-filter');
+    if(licFilter) licFilter.addEventListener('change', function(){ branchFilter = licFilter.value; render(); });
+    main.querySelectorAll('[data-license-date]').forEach(function(el){
+      el.addEventListener('change', function(){
+        var l = state.licenses.find(function(x){return x.id===el.getAttribute('data-license-date');});
+        l.expiry = el.value;
+        scheduleSave(); render();
+      });
+    });
+    main.querySelectorAll('[data-license-del]').forEach(function(el){
+      el.addEventListener('click', function(){
+        state.licenses = state.licenses.filter(function(l){return l.id!==el.getAttribute('data-license-del');});
+        scheduleSave(); render();
+      });
+    });
+    var licAdd = document.getElementById('lic-add');
+    if(licAdd){
+      licAdd.addEventListener('click', function(){
+        var branchId = document.getElementById('lic-branch').value;
+        var type = document.getElementById('lic-type').value.trim();
+        var expiry = document.getElementById('lic-date').value;
+        if(!type){ showToast('נא להזין סוג רישיון'); return; }
+        state.licenses.push({id:uid(), branchId:branchId, type:type, expiry:expiry});
+        scheduleSave(); render();
+      });
+    }
+
+    // Financials
+    main.querySelectorAll('[data-fin]').forEach(function(el){
+      el.addEventListener('change', function(){
+        var parts = el.getAttribute('data-fin').split('|');
+        var bId=parts[0], field=parts[1];
+        state.financials[bId][field] = Number(el.value)||0;
+        scheduleSave(); render();
+      });
+    });
+  }
+
+  function findItemMeta(compound){
+    var parts = compound.split('|');
+    return {cat:parts[0], id:parts[1]};
+  }
+  function adjustQty(compound, delta){
+    var meta = findItemMeta(compound);
+    var activeId = branchFilter==='all' ? state.branches[0].id : branchFilter;
+    var item = state.inventory[activeId][meta.cat].find(function(i){return i.id===meta.id;});
+    item.qty = Math.max(0, item.qty + delta);
+    scheduleSave(); render();
+  }
+  function setQty(compound, value){
+    var meta = findItemMeta(compound);
+    var activeId = branchFilter==='all' ? state.branches[0].id : branchFilter;
+    var item = state.inventory[activeId][meta.cat].find(function(i){return i.id===meta.id;});
+    item.qty = Math.max(0, Number(value)||0);
+    scheduleSave(); render();
+  }
+  function setMin(compound, value){
+    var meta = findItemMeta(compound);
+    var activeId = branchFilter==='all' ? state.branches[0].id : branchFilter;
+    var item = state.inventory[activeId][meta.cat].find(function(i){return i.id===meta.id;});
+    item.minQty = Math.max(0, Number(value)||0);
+    scheduleSave(); render();
+  }
+  function delItem(compound){
+    var meta = findItemMeta(compound);
+    var activeId = branchFilter==='all' ? state.branches[0].id : branchFilter;
+    state.inventory[activeId][meta.cat] = state.inventory[activeId][meta.cat].filter(function(i){return i.id!==meta.id;});
+    scheduleSave(); render();
+  }
+
+  // ---------- Boot ----------
+  var _hash = window.location.hash;
+  if(_hash === '#report'){
+    fetchSettings().then(function(row){
+      var cfg = row ? {email: row.email, branches: row.branches || [], ticketTypes: row.ticket_types || []} : null;
+      renderReportPage(cfg);
+    });
+    return;
+  }
+  if(_hash && _hash.indexOf('#report=')===0){
+    renderReportPage(decodeReportConfig(_hash));
+    return;
+  }
+  if(_hash && _hash.indexOf('#ticket=')===0){
+    var _ticketId = decodeURIComponent(_hash.slice('#ticket='.length));
+    renderTicketThreadPage(_ticketId);
+    return;
+  }
+
+  function isTypingActive(){
+    var el = document.activeElement;
+    if(!el) return false;
+    var tag = el.tagName;
+    if(tag==='TEXTAREA') return true;
+    if(tag==='INPUT'){
+      var t = (el.type||'text').toLowerCase();
+      return t!=='checkbox' && t!=='radio' && t!=='button' && t!=='submit';
+    }
+    return false;
+  }
+
+  document.getElementById('export-btn').addEventListener('click', exportData);
+  document.getElementById('export-xlsx-btn').addEventListener('click', exportExcel);
+  document.getElementById('import-btn').addEventListener('click', function(){
+    document.getElementById('import-file').click();
+  });
+  document.getElementById('import-file').addEventListener('change', function(e){
+    if(e.target.files && e.target.files[0]) importData(e.target.files[0]);
+    e.target.value = '';
+  });
+
+  var main = document.getElementById('main');
+  main.innerHTML = '<div class="empty" style="margin-top:60px;">טוען נתונים…</div>';
+  loadState().then(function(){
+    render();
+    pushSettingsToRemote();
+    syncTicketsFromRemote().then(function(ok){
+      if(ok) render();
+    });
+    setInterval(function(){
+      syncTicketsFromRemote().then(function(ok){
+        if((currentTab==='tickets' || currentTab==='dashboard') && !isTypingActive()) render();
+      });
+      if(expandedTicketId){
+        fetchMessages(expandedTicketId).then(function(msgs){
+          ticketMessagesCache[expandedTicketId] = msgs;
+          if(currentTab==='tickets' && !isTypingActive()) render();
+        });
+      }
+    }, 10000);
+  });
+
+  // Extra safety net: flush any pending save immediately if the page is
+  // closed, refreshed, or the tab is hidden — so nothing is ever lost
+  // between a debounced save and the moment you close the browser.
+  window.addEventListener('beforeunload', function(){ clearTimeout(saveTimer); persist(); });
+  document.addEventListener('visibilitychange', function(){
+    if(document.hidden){ clearTimeout(saveTimer); persist(); }
+  });
+
+})();
+</script>
+</body>
+</html>
