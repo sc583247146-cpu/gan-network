@@ -1190,7 +1190,9 @@
       '<table><thead><tr><th>שם</th><th>תחום</th><th>טלפון</th><th>הסכם / הערות מחיר</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>' :
       '<div class="empty">עוד לא נוספו ספקים</div>';
 
-    var catOpts = SUPPLIER_CATS.map(function(c){return '<option value="'+c+'">'+c+'</option>';}).join('');
+    var usedCats = state.suppliers.map(function(s){return s.category;}).filter(Boolean);
+    var allCatSuggestions = SUPPLIER_CATS.concat(usedCats.filter(function(c){return SUPPLIER_CATS.indexOf(c)===-1;}));
+    var catOpts = allCatSuggestions.map(function(c){return '<option value="'+esc(c)+'">';}).join('');
 
     return ''+
     '<div class="topline"><div><h1 class="page-title">ספקים וחוזים</h1><div class="page-sub">כל אנשי המקצוע במקום אחד — לחיצה אחת מתוך תקלה</div></div></div>'+
@@ -1199,7 +1201,7 @@
       '<h2 class="section-title">הוספת ספק</h2>'+
       '<div class="grid cols-2" style="margin-bottom:12px;">'+
         '<label class="field">שם<input type="text" id="sup-name"></label>'+
-        '<label class="field">תחום<select id="sup-cat">'+catOpts+'</select></label>'+
+        '<label class="field">תחום (בחרו מהרשימה או הקלידו תחום חדש)<input type="text" id="sup-cat" list="supplier-cat-datalist" placeholder="למשל: טכנאי מיזוג"><datalist id="supplier-cat-datalist">'+catOpts+'</datalist></label>'+
         '<label class="field">טלפון<input type="tel" id="sup-phone" dir="ltr"></label>'+
         '<label class="field">הסכם מחיר / הערות<input type="text" id="sup-terms"></label>'+
       '</div>'+
@@ -2381,7 +2383,7 @@
     if(supAdd){
       supAdd.addEventListener('click', function(){
         var name = document.getElementById('sup-name').value.trim();
-        var category = document.getElementById('sup-cat').value;
+        var category = document.getElementById('sup-cat').value.trim();
         var phone = document.getElementById('sup-phone').value.trim();
         var terms = document.getElementById('sup-terms').value.trim();
         if(!name){ showToast('נא להזין שם ספק'); return; }
