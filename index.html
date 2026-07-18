@@ -442,6 +442,7 @@
       customTicketTypes: [],
       equipmentStandard: {basePer: 20, items: []},
       customCategories: [],
+      checks: [],
       wizard: wizard, // branchId -> {phases}
       tickets: [],
       suppliers: [],
@@ -610,6 +611,7 @@
     s.customTicketTypes = s.customTicketTypes || [];
     s.equipmentStandard = s.equipmentStandard || {basePer: 20, items: []};
     s.customCategories = s.customCategories || [];
+    s.checks = s.checks || [];
     s.wizard = s.wizard || {};
     s.tickets = s.tickets || [];
     s.suppliers = s.suppliers || [];
@@ -1202,6 +1204,42 @@
         '<label class="field">הסכם מחיר / הערות<input type="text" id="sup-terms"></label>'+
       '</div>'+
       '<button class="btn" id="sup-add">הוסף ספק</button>'+
+    '</div>'+
+    renderChecksSection();
+  }
+
+  function renderChecksSection(){
+    var supplierOpts = state.suppliers.map(function(s){return '<option value="'+s.id+'">'+esc(s.name)+'</option>';}).join('');
+    var sorted = state.checks.slice().sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
+    var rows = sorted.map(function(c){
+      var sup = state.suppliers.find(function(s){return s.id===c.supplierId;});
+      var supName = sup ? sup.name : (c.supplierName || '—');
+      return '<div class="ticket-card">'+
+        '<div class="ticket-top">'+
+          '<div><span class="pill '+(c.delivered?'green':'amber')+'">'+(c.delivered?'נמסר':'טרם נמסר')+'</span> <span class="muted" style="font-size:12.5px;">'+esc(supName)+' · '+esc(c.date)+'</span></div>'+
+          '<button class="icon-btn" title="מחק" data-check-del="'+c.id+'">✕</button>'+
+        '</div>'+
+        '<div style="margin-bottom:8px;">סכום: <span class="num">'+fmtMoney(c.amount)+'</span>'+(c.checkNumber?' · מספר שיק: '+esc(c.checkNumber):'')+(c.note?' · '+esc(c.note):'')+'</div>'+
+        renderAttachmentPreview(c.photoUrl)+
+        '<button class="btn secondary small" data-check-toggle="'+c.id+'">'+(c.delivered?'סמן כטרם נמסר':'סמן כנמסר לספק')+'</button>'+
+      '</div>';
+    }).join('') || '<div class="empty">עוד לא נוספו שיקים למעקב</div>';
+
+    return '<div class="card" style="margin-top:18px;">'+
+      '<h2 class="section-title">מעקב שיקים לספקים</h2>'+
+      '<p class="muted" style="font-size:13px; margin-bottom:14px;">צלמו את השיק לפני שאתם מוסרים אותו לספק, ותסמנו כאן מתי הוא נמסר בפועל.</p>'+
+      rows+
+      (state.suppliers.length ?
+        '<div class="grid cols-2" style="margin-top:14px; margin-bottom:12px;">'+
+          '<label class="field">ספק<select id="chk-supplier">'+supplierOpts+'</select></label>'+
+          '<label class="field">סכום (₪)<input type="number" min="0" id="chk-amount"></label>'+
+          '<label class="field">מספר שיק (לא חובה)<input type="text" id="chk-number"></label>'+
+          '<label class="field">תאריך<input type="date" id="chk-date" value="'+new Date().toISOString().slice(0,10)+'"></label>'+
+          '<label class="field">הערה (לא חובה)<input type="text" id="chk-note"></label>'+
+          '<label class="field">צילום השיק<input type="file" id="chk-photo" accept="image/*"></label>'+
+        '</div>'+
+        '<button class="btn" id="chk-add">הוסף שיק למעקב</button>'
+        : '<p class="muted" style="font-size:13px; margin-top:14px;">הוסיפו קודם ספק אחד לפחות (למעלה) כדי להתחיל לעקוב אחרי שיקים.</p>')+
     '</div>';
   }
 
@@ -1398,11 +1436,11 @@
     }
   }catch(e){ console.error('Supabase init failed', e); }
 
-  function uploadAttachment(file){
+  function uploadAttachment(file, folder){
     if(!sb || !file) return Promise.resolve('');
     var extMatch = file.name.match(/\.[a-zA-Z0-9]+$/);
     var ext = extMatch ? extMatch[0] : '';
-    var path = 'tickets/' + Date.now() + '-' + Math.random().toString(36).slice(2,8) + ext;
+    var path = (folder||'tickets') + '/' + Date.now() + '-' + Math.random().toString(36).slice(2,8) + ext;
     return sb.storage.from('ticket-attachments').upload(path, file).then(function(res){
       if(res.error) throw res.error;
       var pub = sb.storage.from('ticket-attachments').getPublicUrl(path);
@@ -2354,6 +2392,43 @@
     main.querySelectorAll('[data-supplier-del]').forEach(function(el){
       el.addEventListener('click', function(){
         state.suppliers = state.suppliers.filter(function(s){return s.id!==el.getAttribute('data-supplier-del');});
+        scheduleSave(); render();
+      });
+    });
+
+    var chkAddBtn = document.getElementById('chk-add');
+    if(chkAddBtn){
+      chkAddBtn.addEventListener('click', function(){
+        var supplierId = document.getElementById('chk-supplier').value;
+        var amount = Number(document.getElementById('chk-amount').value)||0;
+        var checkNumber = document.getElementById('chk-number').value.trim();
+        var date = document.getElementById('chk-date').value || new Date().toISOString().slice(0,10);
+        var note = document.getElementById('chk-note').value.trim();
+        var file = document.getElementById('chk-photo').files[0];
+        var sup = state.suppliers.find(function(s){return s.id===supplierId;});
+        if(!sup){ showToast('בחרו ספק'); return; }
+        if(amount<=0){ showToast('נא להזין סכום תקין'); return; }
+        showToast('שומר...');
+        uploadAttachment(file, 'checks').then(function(photoUrl){
+          state.checks.push({
+            id:uid(), supplierId:supplierId, supplierName:sup.name, amount:amount,
+            checkNumber:checkNumber, date:date, note:note, photoUrl:photoUrl, delivered:false
+          });
+          scheduleSave(); render();
+          showToast('השיק נוסף למעקב');
+        });
+      });
+    }
+    main.querySelectorAll('[data-check-toggle]').forEach(function(el){
+      el.addEventListener('click', function(){
+        var c = state.checks.find(function(x){return x.id===el.getAttribute('data-check-toggle');});
+        if(c) c.delivered = !c.delivered;
+        scheduleSave(); render();
+      });
+    });
+    main.querySelectorAll('[data-check-del]').forEach(function(el){
+      el.addEventListener('click', function(){
+        state.checks = state.checks.filter(function(c){return c.id!==el.getAttribute('data-check-del');});
         scheduleSave(); render();
       });
     });
