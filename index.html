@@ -1239,6 +1239,7 @@
           '<label class="field">תאריך<input type="date" id="chk-date" value="'+new Date().toISOString().slice(0,10)+'"></label>'+
           '<label class="field">הערה (לא חובה)<input type="text" id="chk-note"></label>'+
           '<label class="field">צילום השיק<input type="file" id="chk-photo" accept="image/*"></label>'+
+          '<div id="chk-photo-preview"></div>'+
         '</div>'+
         '<button class="btn" id="chk-add">הוסף שיק למעקב</button>'
         : '<p class="muted" style="font-size:13px; margin-top:14px;">הוסיפו קודם ספק אחד לפחות (למעלה) כדי להתחיל לעקוב אחרי שיקים.</p>')+
@@ -1449,11 +1450,23 @@
       return (pub && pub.data && pub.data.publicUrl) || '';
     }).catch(function(e){ console.error('upload failed', e); return ''; });
   }
+  function openImageLightbox(url){
+    var old = document.getElementById('lightbox-overlay');
+    if(old) old.remove();
+    var overlay = document.createElement('div');
+    overlay.id = 'lightbox-overlay';
+    overlay.style.cssText = 'position:fixed; inset:0; background:rgba(15,20,14,.82); display:flex; align-items:center; justify-content:center; z-index:9999; padding:24px; cursor:zoom-out;';
+    overlay.innerHTML = '<img src="'+esc(url)+'" style="max-width:92vw; max-height:92vh; border-radius:10px; box-shadow:0 10px 40px rgba(0,0,0,.5); cursor:default;">';
+    overlay.addEventListener('click', function(){ overlay.remove(); });
+    document.body.appendChild(overlay);
+  }
+  window.openImageLightbox = openImageLightbox;
   function renderAttachmentPreview(url){
     if(!url) return '';
     var isImage = /\.(png|jpe?g|gif|webp)(\?|$)/i.test(url);
     if(isImage){
-      return '<div style="margin:8px 0;"><a href="'+esc(url)+'" target="_blank" rel="noopener"><img src="'+esc(url)+'" style="max-width:220px; max-height:160px; border-radius:8px; border:1px solid var(--border); display:block;"></a></div>';
+      var safeUrl = url.replace(/'/g, "%27");
+      return '<div style="margin:8px 0;"><img src="'+esc(url)+'" onclick="openImageLightbox(\''+safeUrl+'\')" style="max-width:220px; max-height:160px; border-radius:8px; border:1px solid var(--border); display:block; cursor:zoom-in;"></div>';
     }
     return '<div style="margin:8px 0;"><a href="'+esc(url)+'" target="_blank" rel="noopener" style="font-size:13px; font-weight:700; color:var(--primary-dark);">📎 צפייה בקובץ מצורף</a></div>';
   }
@@ -2398,6 +2411,16 @@
       });
     });
 
+    var chkPhotoInp = document.getElementById('chk-photo');
+    if(chkPhotoInp){
+      chkPhotoInp.addEventListener('change', function(){
+        var preview = document.getElementById('chk-photo-preview');
+        var file = chkPhotoInp.files[0];
+        if(!file){ preview.innerHTML=''; return; }
+        var url = URL.createObjectURL(file);
+        preview.innerHTML = '<img src="'+url+'" style="max-width:220px; max-height:160px; border-radius:8px; border:1px solid var(--border); display:block; margin-top:8px; cursor:zoom-in;" onclick="openImageLightbox(\''+url+'\')">';
+      });
+    }
     var chkAddBtn = document.getElementById('chk-add');
     if(chkAddBtn){
       chkAddBtn.addEventListener('click', function(){
